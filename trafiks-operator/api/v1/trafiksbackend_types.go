@@ -23,16 +23,29 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// SecretReference references a Kubernetes Secret containing Trafiks backend credentials
+type SecretReference struct {
+	// Name of the secret
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the secret (optional, defaults to TrafiksBackend namespace if not specified)
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
 // TrafiksBackendSpec defines the desired state of TrafiksBackend
 type TrafiksBackendSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
+	// Reference to the Kubernetes Secret containing baseURL and apiKey
+	// +required
+	SecretRef SecretReference `json:"secretRef"`
 
-	// foo is an example field of TrafiksBackend. Edit trafiksbackend_types.go to remove/update
+	// Optional: Custom key names in the secret (defaults: "baseURL" and "apiKey")
 	// +optional
-	Foo *string `json:"foo,omitempty"`
+	BaseURLKey string `json:"baseURLKey,omitempty"`
+
+	// +optional
+	APIKeyKey string `json:"apiKeyKey,omitempty"`
 }
 
 // TrafiksBackendStatus defines the observed state of TrafiksBackend.
@@ -44,12 +57,9 @@ type TrafiksBackendStatus struct {
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 	// conditions represent the current state of the TrafiksBackend resource.
-	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
-	//
-	// Standard condition types include:
-	// - "Available": the resource is fully functional
-	// - "Progressing": the resource is being created or updated
-	// - "Degraded": the resource failed to reach or maintain its desired state
+	// Conditions used:
+	// - "Ready": Overall readiness (secret valid, backend reachable, authentication successful)
+	// - "Available": Backend reachability (Trafiks backend is reachable)
 	//
 	// The status of each condition is one of True, False, or Unknown.
 	// +listType=map

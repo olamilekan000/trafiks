@@ -10,10 +10,10 @@ stop:
 	$(DOCKER_COMPOSE) down
 
 startdb:
-	$(DOCKER_COMPOSE) up -d postgres redis1
+	$(DOCKER_COMPOSE) up -d postgres_trafiks redis_trafiks
 
 stopdb:
-	$(DOCKER_COMPOSE) stop postgres redis1
+	$(DOCKER_COMPOSE) stop postgres_trafiks redis_trafiks
 
 build-docker:
 	$(DOCKER_COMPOSE) build trafiks
@@ -41,7 +41,7 @@ cleandb:
 
 dev:
 	@echo "Starting development environment..."
-	@$(DOCKER_COMPOSE) up -d postgres redis1
+	@$(DOCKER_COMPOSE) up -d postgres_trafiks redis_trafiks
 	@echo "Waiting for databases to be ready..."
 	@sleep 2
 	@echo "Starting Air for live reload..."
@@ -49,7 +49,7 @@ dev:
 
 dev-agent:
 	@echo "Starting agent development environment..."
-	@$(DOCKER_COMPOSE) up -d postgres redis1
+	@$(DOCKER_COMPOSE) up -d postgres_trafiks redis_trafiks
 	@echo "Waiting for databases to be ready..."
 	@sleep 2
 	@echo "Starting Air for agent live reload..."

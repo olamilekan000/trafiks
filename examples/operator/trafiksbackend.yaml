@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trafiks-backend-credentials
+  namespace: trafiks
+type: Opaque
+stringData:
+  baseURL: "http://localhost:8890"
+  apiKey: "tfk_d215a10b27c56050f6ab6ee094cc4aa27b5b6291ea2e3379dfbd883bc0a2e523"
+
+---
+apiVersion: proxy.trafiks.io/v1
+kind: TrafiksBackend
+metadata:
+  name: trafiks-backend-config
+  namespace: trafiks
+spec:
+  secretRef:
+    name: trafiks-backend-credentials
+    namespace: trafiks
