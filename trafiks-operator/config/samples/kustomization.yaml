@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- proxy_v1_trafiksproxy.yaml
+- proxy_v1_trafiksbackend.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

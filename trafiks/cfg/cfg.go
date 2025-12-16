@@ -13,18 +13,19 @@ var Module = fx.Options(
 )
 
 type Config struct {
-	LogLevel    string       `mapstructure:"log_level"`
-	LogOutput   string       `mapstructure:"log_output"`
-	ServerPort  string       `mapstructure:"server_port"`
-	TLSPort     string       `mapstructure:"tls_port"`
-	AppBaseURL  string       `mapstructure:"app_base_url"`
-	Environment string       `mapstructure:"environment"`
-	Database    database     `mapstructure:"database"`
-	JwtSecret   string       `mapstructure:"jwt_secret"`
-	Redis       RedisConf    `mapstructure:"redis"`
-	Dashboard   DashboardCfg `mapstructure:"dashboard"`
-	Bootstrap   BootstrapCfg `mapstructure:"bootstrap"`
-	Docker      DockerConf   `mapstructure:"docker"`
+	LogLevel    string         `mapstructure:"log_level"`
+	LogOutput   string         `mapstructure:"log_output"`
+	ServerPort  string         `mapstructure:"server_port"`
+	TLSPort     string         `mapstructure:"tls_port"`
+	AppBaseURL  string         `mapstructure:"app_base_url"`
+	Environment string         `mapstructure:"environment"`
+	Database    database       `mapstructure:"database"`
+	JwtSecret   string         `mapstructure:"jwt_secret"`
+	Redis       RedisConf      `mapstructure:"redis"`
+	Dashboard   DashboardCfg   `mapstructure:"dashboard"`
+	Bootstrap   BootstrapCfg   `mapstructure:"bootstrap"`
+	Docker      DockerConf     `mapstructure:"docker"`
+	Kubernetes  KubernetesConf `mapstructure:"kubernetes"`
 }
 
 type DashboardCfg struct {
@@ -51,6 +52,10 @@ type RedisConf struct {
 
 type DockerConf struct {
 	SocketPath string `mapstructure:"socket_path"`
+}
+
+type KubernetesConf struct {
+	KubeconfigPath string `mapstructure:"kubeconfig_path"` // Empty = in-cluster config
 }
 
 type database struct {

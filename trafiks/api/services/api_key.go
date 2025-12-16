@@ -108,21 +108,22 @@ func (s *APIKey) GenerateAPIKey(c *gin.Context, req dto.GenerateAPIKeyRequest) (
 		webhook, err := s.webhookRepo.Find(
 			c.Request.Context(), &models.Webhook{UserID: user.ID, IsActive: pkg.BoolPtr(true)})
 		if err != nil {
-			s.logger.Warnf("failed to fetch webhook %v", err)
-			return nil, s.restErr.ServerError("failed to fetch webhook")
+			s.logger.Warnf("failed to fetch webhook: %v", err)
 		}
 
-		go s.webhookService.SendEvent(
-			webhook.ID,
-			EventSecretKeyCreated,
-			map[string]interface{}{
-				"key_id":     apiKey.UID,
-				"key_prefix": apiKey.KeyPrefix,
-				"name":       apiKey.Name,
-				"user_id":    user.ID,
-				"webhook_id": webhook.ID,
-			},
-		)
+		if webhook != nil {
+			go s.webhookService.SendEvent(
+				webhook.ID,
+				EventSecretKeyCreated,
+				map[string]interface{}{
+					"key_id":     apiKey.UID,
+					"key_prefix": apiKey.KeyPrefix,
+					"name":       apiKey.Name,
+					"user_id":    user.ID,
+					"webhook_id": webhook.ID,
+				},
+			)
+		}
 	}
 
 	return gin.H{
@@ -197,20 +198,21 @@ func (s *APIKey) RevokeAPIKey(c *gin.Context, keyID string) (interface{}, *pkg.R
 		webhook, err := s.webhookRepo.Find(
 			c.Request.Context(), &models.Webhook{UserID: user.ID, IsActive: pkg.BoolPtr(true)})
 		if err != nil {
-			s.logger.Warnf("failed to fetch webhook %v", err)
-			return nil, s.restErr.ServerError("failed to fetch webhook")
+			s.logger.Warnf("failed to fetch webhook: %v", err)
 		}
 
-		go s.webhookService.SendEvent(
-			webhook.ID,
-			EventSecretKeyDeactivated,
-			map[string]interface{}{
-				"key_id":     apiKey.UID,
-				"key_prefix": apiKey.KeyPrefix,
-				"name":       apiKey.Name,
-				"user_id":    user.ID,
-			},
-		)
+		if webhook != nil {
+			go s.webhookService.SendEvent(
+				webhook.ID,
+				EventSecretKeyDeactivated,
+				map[string]interface{}{
+					"key_id":     apiKey.UID,
+					"key_prefix": apiKey.KeyPrefix,
+					"name":       apiKey.Name,
+					"user_id":    user.ID,
+				},
+			)
+		}
 	}
 
 	return gin.H{

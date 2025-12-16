@@ -47,6 +47,7 @@ type ServiceConfigRequest struct {
 	QueryParams   *QueryParamsConfigRequest `json:"query_params,omitempty"`
 	HTTPSRedirect *bool                     `json:"https_redirect,omitempty"`
 	Docker        *DockerConfigRequest      `json:"docker,omitempty"`
+	Kubernetes    *KubernetesConfigRequest  `json:"kubernetes,omitempty"`
 }
 
 // DockerConfigRequest represents Docker-specific configuration
@@ -54,6 +55,13 @@ type DockerConfigRequest struct {
 	Labels  map[string]string `json:"labels,omitempty"`  // Docker labels to match containers
 	Network string            `json:"network,omitempty"` // Optional: Docker network name
 	Port    string            `json:"port,omitempty"`    // Container port to use
+}
+
+type KubernetesConfigRequest struct {
+	Namespace   string            `json:"namespace,omitempty"`
+	ServiceName string            `json:"service_name,omitempty"`
+	ServicePort string            `json:"service_port,omitempty"`
+	Selector    map[string]string `json:"selector,omitempty"`
 }
 
 type HeadersConfigRequest struct {
@@ -225,6 +233,15 @@ func (s *ServiceConfigRequest) ToServiceConfig() *models.ServiceConfig {
 			Labels:  s.Docker.Labels,
 			Network: s.Docker.Network,
 			Port:    s.Docker.Port,
+		}
+	}
+
+	if s.Kubernetes != nil {
+		config.Kubernetes = &models.KubernetesConfig{
+			Namespace:   s.Kubernetes.Namespace,
+			ServiceName: s.Kubernetes.ServiceName,
+			ServicePort: s.Kubernetes.ServicePort,
+			Selector:    s.Kubernetes.Selector,
 		}
 	}
 

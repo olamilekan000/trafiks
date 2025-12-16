@@ -25,6 +25,7 @@ type DockerSource struct {
 // NewDockerSource creates a new DockerSource instance
 // If socketPath is empty, Docker source will be disabled
 func NewDockerSource(
+	ctx context.Context,
 	serviceRepo repository.ServiceRepoClient,
 	socketPath string,
 	logger pkg.LoggerClient,
@@ -44,7 +45,6 @@ func NewDockerSource(
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	ctx := context.Background()
 	_, err = dockerCli.Ping(ctx, client.PingOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Docker daemon: %w", err)

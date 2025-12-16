@@ -218,7 +218,10 @@ func (s *Project) UpdateProject(c *gin.Context, req dto.UpdateProjectRequest) (i
 			ctx, &models.Webhook{UserID: user.ID, IsActive: pkg.BoolPtr(true)})
 		if err != nil {
 			s.logger.Warnf("failed to fetch webhook %v", err)
-			return nil, s.restErr.ServerError("failed to fetch webhook")
+		}
+
+		if webhook == nil {
+			return nil, nil
 		}
 
 		wasActive := project.IsActive != nil && *project.IsActive
@@ -286,7 +289,6 @@ func (s *Project) DeleteProject(c *gin.Context) (interface{}, *pkg.RestErr) {
 		return nil, s.restErr.BadRequest("project ID is required")
 	}
 
-	// Find project by UID and UserID to verify ownership
 	project, err := s.projectRepo.Find(ctx, &models.Project{
 		UID:    projectUID,
 		UserID: user.ID,
@@ -295,16 +297,13 @@ func (s *Project) DeleteProject(c *gin.Context) (interface{}, *pkg.RestErr) {
 		return nil, s.restErr.NotFound("project not found")
 	}
 
-	// Delete associated service if it exists
 	service, err := s.serviceRepo.Find(ctx, &models.Service{ProjectID: project.ID})
 	if err == nil && service != nil {
 		if err := s.serviceRepo.Delete(ctx, service); err != nil {
 			s.logger.Errorf("failed to delete associated service: %v", err)
-			// Continue with project deletion even if service deletion fails
 		}
 	}
 
-	// Delete the project
 	if err := s.projectRepo.Delete(ctx, &models.Project{
 		UID:    projectUID,
 		UserID: user.ID,
