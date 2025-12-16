@@ -40,6 +40,7 @@ type ServiceConfig struct {
 	QueryParams   QueryParamsConfig `json:"query_params,omitempty" gorm:"type:jsonb"`
 	HTTPSRedirect *bool             `json:"https_redirect,omitempty"` // If true, redirect HTTP to HTTPS; if false, reject; if nil, default to true
 	Docker        *DockerConfig     `json:"docker,omitempty"`         // Docker-specific configuration
+	Kubernetes    *KubernetesConfig `json:"kubernetes,omitempty"`     // Kubernetes-specific configuration
 	// Future: RateLimit, Retry, Timeouts, etc.
 }
 
@@ -48,6 +49,14 @@ type DockerConfig struct {
 	Labels  map[string]string `json:"labels"`  // Docker labels to match containers (e.g., {"trafiks.service": "my-api"})
 	Network string            `json:"network"` // Optional: Docker network name (e.g., "bridge", "custom-network")
 	Port    string            `json:"port"`    // Container port to use (e.g., "8080")
+}
+
+// KubernetesConfig contains Kubernetes-specific service discovery configuration
+type KubernetesConfig struct {
+	Namespace   string            `json:"namespace"`          // K8s namespace (e.g., "default")
+	ServiceName string            `json:"service_name"`       // K8s Service name
+	ServicePort string            `json:"service_port"`       // Port name or number (e.g., "http", "8080")
+	Selector    map[string]string `json:"selector,omitempty"` // Optional: label selector (e.g., {"app": "my-api"})
 }
 
 type HeadersConfig struct {

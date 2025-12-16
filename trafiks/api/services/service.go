@@ -63,6 +63,10 @@ func (s *Service) CreateService(c *gin.Context, req dto.CreateServiceRequest) (i
 		return nil, s.restErr.BadRequest(err.Error())
 	}
 
+	if req.Source == models.SourceKubernetes && !IsAPIKeyAuth(c) {
+		return nil, s.restErr.RequestNotAllowed("kubernetes source services can only be created via the Kubernetes operator using API key authentication")
+	}
+
 	project, err := s.projectRepo.Find(ctx, &models.Project{
 		UID:    projectUID,
 		UserID: user.ID,
@@ -106,7 +110,6 @@ func (s *Service) CreateService(c *gin.Context, req dto.CreateServiceRequest) (i
 		service.TLSKey = string(keyPEM)
 		s.logger.Infof("Generated self-signed certificate for domain: %s", req.ProxyURL)
 
-		// Load certificate into TLS manager cache
 		if s.tlsManager != nil {
 			if err := s.tlsManager.LoadCertificate(req.ProxyURL, certPEM, keyPEM); err != nil {
 				s.logger.Warnf("Failed to load certificate into TLS manager cache: %v", err)
@@ -114,7 +117,6 @@ func (s *Service) CreateService(c *gin.Context, req dto.CreateServiceRequest) (i
 		}
 	}
 
-	// Set configuration if provided
 	if req.Configuration != nil {
 		configJSON, err := req.Configuration.ToJSON()
 		if err != nil {
@@ -173,7 +175,6 @@ func (s *Service) GetService(c *gin.Context) (interface{}, *pkg.RestErr) {
 		return nil, s.restErr.BadRequest("service ID is required")
 	}
 
-	// Verify project exists and belongs to user
 	project, err := s.projectRepo.Find(ctx, &models.Project{
 		UID:    projectUID,
 		UserID: user.ID,
@@ -182,7 +183,6 @@ func (s *Service) GetService(c *gin.Context) (interface{}, *pkg.RestErr) {
 		return nil, s.restErr.NotFound("project not found")
 	}
 
-	// Find service by UID and verify it belongs to the project
 	service, err := s.serviceRepo.Find(ctx, &models.Service{
 		UID:       serviceId,
 		ProjectID: project.ID,
@@ -191,7 +191,6 @@ func (s *Service) GetService(c *gin.Context) (interface{}, *pkg.RestErr) {
 		return nil, s.restErr.NotFound("service not found")
 	}
 
-	// Get config for response
 	config, _ := service.GetConfig()
 
 	response := gin.H{
@@ -208,7 +207,6 @@ func (s *Service) GetService(c *gin.Context) (interface{}, *pkg.RestErr) {
 		"updated_at":         service.UpdatedAt,
 	}
 
-	// Add certificate info if HTTPS is enabled
 	if service.Scheme == models.SchemeHTTPS && service.TLSCertificate != "" {
 		certInfo, err := tlsPkg.ParseCertificateInfo(service.TLSCertificate, service.TLSCertResolver)
 		if err == nil {
@@ -232,7 +230,6 @@ func (s *Service) GetServiceByProject(c *gin.Context) (interface{}, *pkg.RestErr
 		return nil, s.restErr.BadRequest("project ID is required")
 	}
 
-	// Verify project exists and belongs to user
 	project, err := s.projectRepo.Find(ctx, &models.Project{
 		UID:    projectUID,
 		UserID: user.ID,
@@ -241,14 +238,11 @@ func (s *Service) GetServiceByProject(c *gin.Context) (interface{}, *pkg.RestErr
 		return nil, s.restErr.NotFound("project not found")
 	}
 
-	// Find service by project ID
 	service, err := s.serviceRepo.Find(ctx, &models.Service{ProjectID: project.ID})
 	if err != nil {
-		// Service doesn't exist yet - return 404
 		return nil, s.restErr.NotFound("service not found for this project")
 	}
 
-	// Get config for response
 	config, _ := service.GetConfig()
 
 	response := gin.H{
@@ -265,7 +259,6 @@ func (s *Service) GetServiceByProject(c *gin.Context) (interface{}, *pkg.RestErr
 		"updated_at":         service.UpdatedAt,
 	}
 
-	// Add certificate info if HTTPS is enabled
 	if service.Scheme == models.SchemeHTTPS && service.TLSCertificate != "" {
 		certInfo, err := tlsPkg.ParseCertificateInfo(service.TLSCertificate, service.TLSCertResolver)
 		if err == nil {
@@ -298,7 +291,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		return nil, s.restErr.BadRequest(err.Error())
 	}
 
-	// Verify project exists and belongs to user
 	project, err := s.projectRepo.Find(ctx, &models.Project{
 		UID:    projectUID,
 		UserID: user.ID,
@@ -307,7 +299,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		return nil, s.restErr.NotFound("project not found")
 	}
 
-	// Find service by UID and verify it belongs to the project
 	service, err := s.serviceRepo.Find(ctx, &models.Service{
 		UID:       serviceId,
 		ProjectID: project.ID,
@@ -316,7 +307,10 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		return nil, s.restErr.NotFound("service not found")
 	}
 
-	// Build updates map
+	if service.Source == models.SourceKubernetes && !IsAPIKeyAuth(c) {
+		return nil, s.restErr.RequestNotAllowed("kubernetes source services can only be updated via the Kubernetes operator using API key authentication")
+	}
+
 	updates := make(map[string]interface{})
 
 	if req.Source != "" {
@@ -328,7 +322,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		updates["scheme"] = req.Scheme
 		service.Scheme = req.Scheme
 
-		// Generate certificate if changing to HTTPS and no certificate exists
 		if req.Scheme == models.SchemeHTTPS && service.TLSCertificate == "" {
 			certPEM, keyPEM, err := tlsPkg.GenerateSelfSignedCert(service.ProxyURL)
 			if err != nil {
@@ -343,7 +336,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 			service.TLSCertResolver = "selfsigned"
 			s.logger.Infof("Generated self-signed certificate for domain: %s", service.ProxyURL)
 
-			// Load certificate into TLS manager cache
 			if s.tlsManager != nil {
 				if err := s.tlsManager.LoadCertificate(service.ProxyURL, certPEM, keyPEM); err != nil {
 					s.logger.Warnf("Failed to load certificate into TLS manager cache: %v", err)
@@ -355,7 +347,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 			updates["tls_key"] = ""
 			updates["tls_cert_resolver"] = ""
 
-			// Remove from TLS manager cache
 			if s.tlsManager != nil {
 				s.tlsManager.RemoveCertificate(service.ProxyURL)
 			}
@@ -363,9 +354,7 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 	}
 
 	if req.ProxyURL != "" {
-		// If ProxyURL changes and service is HTTPS, regenerate certificate
 		if service.Scheme == models.SchemeHTTPS {
-			// Remove old certificate from cache
 			if s.tlsManager != nil {
 				s.tlsManager.RemoveCertificate(service.ProxyURL)
 			}
@@ -381,7 +370,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 			service.TLSKey = string(keyPEM)
 			s.logger.Infof("Regenerated self-signed certificate for new domain: %s", req.ProxyURL)
 
-			// Load new certificate into TLS manager cache
 			if s.tlsManager != nil {
 				if err := s.tlsManager.LoadCertificate(req.ProxyURL, certPEM, keyPEM); err != nil {
 					s.logger.Warnf("Failed to load certificate into TLS manager cache: %v", err)
@@ -396,7 +384,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 	}
 
 	if req.ProxyURL != "" {
-		// Check if new ProxyURL is already in use by another service
 		existingServiceByProxyURL, err := s.serviceRepo.Find(ctx, &models.Service{ProxyURL: req.ProxyURL})
 		if err == nil && existingServiceByProxyURL != nil && existingServiceByProxyURL.ID != service.ID {
 			return nil, s.restErr.StatusConflict("proxy URL is already in use")
@@ -415,7 +402,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		service.CacheTTL = *req.CacheTTL
 	}
 
-	// Update configuration if provided
 	if req.Configuration != nil {
 		configJSON, err := req.Configuration.ToJSON()
 		if err != nil {
@@ -437,7 +423,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		return nil, s.restErr.ServerError("failed to update service")
 	}
 
-	// Get config for response
 	config, _ := service.GetConfig()
 
 	response := gin.H{
@@ -454,7 +439,6 @@ func (s *Service) UpdateService(c *gin.Context, req dto.UpdateServiceRequest) (i
 		"updated_at":         service.UpdatedAt,
 	}
 
-	// Add certificate info if HTTPS is enabled
 	if service.Scheme == models.SchemeHTTPS && service.TLSCertificate != "" {
 		certInfo, err := tlsPkg.ParseCertificateInfo(service.TLSCertificate, service.TLSCertResolver)
 		if err == nil {

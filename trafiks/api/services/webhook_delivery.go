@@ -50,7 +50,6 @@ func (s *WebhookDeliveryService) ListDeliveries(c *gin.Context) (interface{}, *p
 
 	ctx := c.Request.Context()
 
-	// Parse pagination
 	pagination := &dto.Pagination{
 		Page:  1,
 		Limit: 20,
@@ -94,80 +93,32 @@ func (s *WebhookDeliveryService) ListDeliveries(c *gin.Context) (interface{}, *p
 	}
 
 	webhookUID := c.Param("webhookId")
-	if webhookUID == "" {
-		webhookUID = c.Query("webhook_id")
-	}
 
 	var deliveries []*models.WebhookDelivery
 	var total int64
 
-	if webhookUID != "" {
-		// Verify webhook exists and belongs to user
-		webhook, err := s.webhookRepo.Find(ctx, &models.Webhook{UID: webhookUID})
-		if err != nil {
-			return nil, s.restErr.NotFound("webhook not found")
-		}
-		if webhook.UserID != user.ID {
-			return nil, s.restErr.NotFound("webhook not found")
-		}
+	webhook, err := s.webhookRepo.Find(ctx, &models.Webhook{UID: webhookUID})
+	if err != nil {
+		return nil, s.restErr.NotFound("webhook not found")
+	}
+	if webhook.UserID != user.ID {
+		return nil, s.restErr.NotFound("webhook not found")
+	}
 
-		deliveries, err = s.deliveryRepo.FindMany(ctx, &models.WebhookDelivery{WebhookID: webhook.ID}, pagination, filters)
-		if err != nil {
-			s.logger.Errorf("failed to fetch webhook deliveries: %v", err)
-			return nil, s.restErr.ServerError("failed to fetch webhook deliveries")
-		}
+	deliveries, err = s.deliveryRepo.FindMany(ctx, &models.WebhookDelivery{WebhookID: webhook.ID}, pagination, filters)
+	if err != nil {
+		s.logger.Errorf("failed to fetch webhook deliveries: %v", err)
+		return nil, s.restErr.ServerError("failed to fetch webhook deliveries")
+	}
 
-		total, err = s.deliveryRepo.Count(ctx, &models.WebhookDelivery{WebhookID: webhook.ID}, filters)
-		if err != nil {
-			s.logger.Errorf("failed to count webhook deliveries: %v", err)
-			return nil, s.restErr.ServerError("failed to count webhook deliveries")
-		}
-	} else {
-		// Fetch all deliveries for user's webhooks
-		// Get all user's webhooks first
-		webhooks, err := s.webhookRepo.FindMany(ctx, &models.Webhook{UserID: user.ID})
-		if err != nil {
-			s.logger.Errorf("failed to fetch user webhooks: %v", err)
-			return nil, s.restErr.ServerError("failed to fetch webhook deliveries")
-		}
-
-		if len(webhooks) == 0 {
-			return gin.H{
-				"deliveries": []gin.H{},
-				"pagination": gin.H{
-					"page":        pagination.Page,
-					"limit":       pagination.Limit,
-					"total":       0,
-					"total_pages": 0,
-				},
-			}, nil
-		}
-
-		// Get webhook IDs
-		webhookIDs := make([]uint, len(webhooks))
-		for i, w := range webhooks {
-			webhookIDs[i] = w.ID
-		}
-
-		// Note: This requires updating the repository to support filtering by multiple webhook IDs
-		// For now, we'll fetch deliveries for the first webhook as a workaround
-		// TODO: Update repository to support IN queries
-		deliveries, err = s.deliveryRepo.FindMany(ctx, &models.WebhookDelivery{WebhookID: webhookIDs[0]}, pagination, filters)
-		if err != nil {
-			s.logger.Errorf("failed to fetch webhook deliveries: %v", err)
-			return nil, s.restErr.ServerError("failed to fetch webhook deliveries")
-		}
-
-		total, err = s.deliveryRepo.Count(ctx, &models.WebhookDelivery{WebhookID: webhookIDs[0]}, filters)
-		if err != nil {
-			s.logger.Errorf("failed to count webhook deliveries: %v", err)
-			return nil, s.restErr.ServerError("failed to count webhook deliveries")
-		}
+	total, err = s.deliveryRepo.Count(ctx, &models.WebhookDelivery{WebhookID: webhook.ID}, filters)
+	if err != nil {
+		s.logger.Errorf("failed to count webhook deliveries: %v", err)
+		return nil, s.restErr.ServerError("failed to count webhook deliveries")
 	}
 
 	pagination.Total = total
 
-	// Format deliveries for response
 	result := make([]gin.H, 0, len(deliveries))
 	for _, delivery := range deliveries {
 		deliveryData := gin.H{
@@ -181,7 +132,6 @@ func (s *WebhookDeliveryService) ListDeliveries(c *gin.Context) (interface{}, *p
 			"updated_at":      delivery.UpdatedAt,
 		}
 
-		// Add payload
 		if len(delivery.Payload) > 0 {
 			var payload map[string]interface{}
 			if err := json.Unmarshal(delivery.Payload, &payload); err == nil {
@@ -189,27 +139,22 @@ func (s *WebhookDeliveryService) ListDeliveries(c *gin.Context) (interface{}, *p
 			}
 		}
 
-		// Add HTTP status code if available
 		if delivery.HTTPStatusCode != nil {
 			deliveryData["http_status_code"] = *delivery.HTTPStatusCode
 		}
 
-		// Add response body if available
 		if delivery.ResponseBody != "" {
 			deliveryData["response_body"] = delivery.ResponseBody
 		}
 
-		// Add error message if available
 		if delivery.ErrorMessage != "" {
 			deliveryData["error_message"] = delivery.ErrorMessage
 		}
 
-		// Add delivered at if available
 		if delivery.DeliveredAt != nil {
 			deliveryData["delivered_at"] = delivery.DeliveredAt
 		}
 
-		// Add next retry at if available
 		if delivery.NextRetryAt != nil {
 			deliveryData["next_retry_at"] = delivery.NextRetryAt
 		}
@@ -246,7 +191,6 @@ func (s *WebhookDeliveryService) GetDelivery(c *gin.Context) (interface{}, *pkg.
 		return nil, s.restErr.NotFound("delivery not found")
 	}
 
-	// Verify delivery belongs to user's webhook
 	webhook, err := s.webhookRepo.Find(ctx, &models.Webhook{ID: delivery.WebhookID})
 	if err != nil {
 		return nil, s.restErr.NotFound("delivery not found")
@@ -267,7 +211,6 @@ func (s *WebhookDeliveryService) GetDelivery(c *gin.Context) (interface{}, *pkg.
 		"updated_at":      delivery.UpdatedAt,
 	}
 
-	// Add payload
 	if len(delivery.Payload) > 0 {
 		var payload map[string]interface{}
 		if err := json.Unmarshal(delivery.Payload, &payload); err == nil {
@@ -275,27 +218,22 @@ func (s *WebhookDeliveryService) GetDelivery(c *gin.Context) (interface{}, *pkg.
 		}
 	}
 
-	// Add HTTP status code if available
 	if delivery.HTTPStatusCode != nil {
 		deliveryData["http_status_code"] = *delivery.HTTPStatusCode
 	}
 
-	// Add response body if available
 	if delivery.ResponseBody != "" {
 		deliveryData["response_body"] = delivery.ResponseBody
 	}
 
-	// Add error message if available
 	if delivery.ErrorMessage != "" {
 		deliveryData["error_message"] = delivery.ErrorMessage
 	}
 
-	// Add delivered at if available
 	if delivery.DeliveredAt != nil {
 		deliveryData["delivered_at"] = delivery.DeliveredAt
 	}
 
-	// Add next retry at if available
 	if delivery.NextRetryAt != nil {
 		deliveryData["next_retry_at"] = delivery.NextRetryAt
 	}
