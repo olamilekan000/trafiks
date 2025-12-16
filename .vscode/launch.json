@@ -10,6 +10,22 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/trafiks/cmd/server/main.go"
+    },
+    {
+      "name": "Launch Trafiks Operator",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/trafiks-operator/cmd/main.go",
+      "cwd": "${workspaceFolder}/trafiks-operator",
+      "env": {
+        "KUBECONFIG": "${env:HOME}/.kube/config"
+      }
+      // "args": [
+      //   "--metrics-bind-address=:8080",
+      //   "--health-probe-bind-address=:8081",
+      //   "--leader-elect=false"
+      // ]
     }
   ]
 }

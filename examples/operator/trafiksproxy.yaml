@@ -1,0 +1,32 @@
+apiVersion: proxy.trafiks.io/v1
+kind: TrafiksProxy
+metadata:
+  name: my-api-proxy
+  namespace: default
+spec:
+  # The proxy domain/URL (without scheme)
+  proxyURL: "myapi.example.com"
+
+  # HTTP scheme (http or https)
+  scheme: "https"
+
+  # Optional: Project name in Trafiks dashboard
+  # If not specified, operator will create or use default project
+  projectName: "my-project"
+
+  # Kubernetes-specific configuration
+  kubernetes:
+    # Namespace where the target service exists
+    namespace: "default"
+
+    # Name of the Kubernetes Service to proxy
+    serviceName: "my-api-service"
+
+    # servicePort is not needed - operator will automatically resolve the port
+    # from the Service object. If the Service has multiple ports, the operator
+    # will use the first port or a port named "http" if available.
+
+    # Optional: Service selector (for advanced use cases)
+    # selector:
+    #   app: my-api
+    #   version: v1

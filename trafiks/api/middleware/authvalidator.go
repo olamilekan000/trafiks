@@ -157,34 +157,39 @@ func (av *AuthValidator) validateAPIKey(ctx context.Context, c *gin.Context, api
 		return nil
 	}
 
-	apiKey, err := av.apiKeyRepo.Find(ctx, &models.APIKey{KeyHash: apiKeyValue, RevokedAt: nil, ExpiresAt: nil})
+	keyPrefix := apiKeyValue[:11]
+
+	apiKey, err := av.apiKeyRepo.Find(ctx, &models.APIKey{
+		KeyPrefix: keyPrefix,
+		RevokedAt: nil,
+		ExpiresAt: nil,
+	})
 	if err != nil {
-		av.logger.Errorf("failed to fetch API keys: %v", err)
+		av.logger.Errorf("failed to fetch API key: %v", err)
 		return nil
 	}
 
-	now := time.Now()
 	if !apiKey.IsActive() {
-		av.logger.Errorf("API key is not active")
 		return nil
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(apiKey.KeyHash), []byte(apiKeyValue))
-	if err == nil {
-		av.apiKeyRepo.Updates(ctx, apiKey, map[string]interface{}{
-			"last_used_at": now,
-		})
-
-		user, err := av.userRepo.Find(ctx, &models.User{ID: apiKey.UserID})
-		if err != nil {
-			av.logger.Errorf("failed to fetch user for API key: %v", err)
-			return nil
-		}
-
-		return user
+	if err != nil {
+		return nil
 	}
 
-	return nil
+	now := time.Now()
+	av.apiKeyRepo.Updates(ctx, apiKey, map[string]interface{}{
+		"last_used_at": now,
+	})
+
+	user, err := av.userRepo.Find(ctx, &models.User{ID: apiKey.UserID})
+	if err != nil {
+		av.logger.Errorf("failed to fetch user for API key: %v", err)
+		return nil
+	}
+
+	return user
 }
 
 func (av *AuthValidator) IsAdmin(c *gin.Context) {

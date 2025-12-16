@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-api-ingress
+  namespace: default
+  annotations:
+    trafiks.io/proxy-url: "myapi.traffiked.cloud"
+    trafiks.io/project-name: "my-project"
+    trafiks.io/scheme: "https"
+spec:
+  rules:
+    - host: myapi.traffiked.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-api-service
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - myapi.traffiked.cloud
+      secretName: myapi-tls-secret
