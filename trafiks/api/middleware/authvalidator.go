@@ -1,12 +1,15 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/trafiks/trafiks/api/repository"
 	"github.com/trafiks/trafiks/api/services"
@@ -21,19 +24,35 @@ type AuthValidatorClient interface {
 }
 
 type AuthValidator struct {
-	userRepo repository.UserRepoClient
-	logger   pkg.LoggerClient
+	userRepo   repository.UserRepoClient
+	apiKeyRepo repository.APIKeyRepoClient
+	logger     pkg.LoggerClient
 }
 
-func NewAuthValidator(userRepo repository.UserRepoClient, logger pkg.LoggerClient) AuthValidatorClient {
+func NewAuthValidator(
+	userRepo repository.UserRepoClient,
+	apiKeyRepo repository.APIKeyRepoClient,
+	logger pkg.LoggerClient,
+) AuthValidatorClient {
 	return &AuthValidator{
-		userRepo: userRepo,
-		logger:   logger,
+		userRepo:   userRepo,
+		apiKeyRepo: apiKeyRepo,
+		logger:     logger,
 	}
 }
 
 func (av *AuthValidator) ValidateUser(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	apiKey := av.extractAPIKey(c)
+	if apiKey != "" {
+		if user := av.validateAPIKey(ctx, c, apiKey); user != nil {
+			c.Set(services.AppUserContext, user)
+			c.Set("auth_method", "api_key")
+			c.Next()
+			return
+		}
+	}
 
 	tokenString, err := c.Cookie("session")
 	if err != nil || tokenString == "" {
@@ -107,8 +126,65 @@ func (av *AuthValidator) ValidateUser(c *gin.Context) {
 	}
 
 	c.Set(services.AppUserContext, user)
+	c.Set("auth_method", "session")
 
 	c.Next()
+}
+
+// extractAPIKey extracts API key from request headers
+func (av *AuthValidator) extractAPIKey(c *gin.Context) string {
+	apiKey := c.GetHeader("X-API-Key")
+	if apiKey != "" {
+		return apiKey
+	}
+
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && (strings.ToLower(parts[0]) == "bearer" || strings.ToLower(parts[0]) == "apikey") {
+			return parts[1]
+		}
+		if !strings.Contains(authHeader, " ") {
+			return authHeader
+		}
+	}
+
+	return ""
+}
+
+func (av *AuthValidator) validateAPIKey(ctx context.Context, c *gin.Context, apiKeyValue string) *models.User {
+	if !strings.HasPrefix(apiKeyValue, "tfk_") {
+		return nil
+	}
+
+	apiKey, err := av.apiKeyRepo.Find(ctx, &models.APIKey{KeyHash: apiKeyValue, RevokedAt: nil, ExpiresAt: nil})
+	if err != nil {
+		av.logger.Errorf("failed to fetch API keys: %v", err)
+		return nil
+	}
+
+	now := time.Now()
+	if !apiKey.IsActive() {
+		av.logger.Errorf("API key is not active")
+		return nil
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(apiKey.KeyHash), []byte(apiKeyValue))
+	if err == nil {
+		av.apiKeyRepo.Updates(ctx, apiKey, map[string]interface{}{
+			"last_used_at": now,
+		})
+
+		user, err := av.userRepo.Find(ctx, &models.User{ID: apiKey.UserID})
+		if err != nil {
+			av.logger.Errorf("failed to fetch user for API key: %v", err)
+			return nil
+		}
+
+		return user
+	}
+
+	return nil
 }
 
 func (av *AuthValidator) IsAdmin(c *gin.Context) {

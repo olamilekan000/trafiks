@@ -49,9 +49,6 @@ func NewWebhookService(
 	}
 }
 
-// SendEvent sends a webhook event to all active webhooks for a user that have the event enabled
-// It creates webhook deliveries and pushes them to the queue for processing by the agent
-// projectUID is optional and only included for project-specific events
 func (s *WebhookService) SendEvent(webhookID uint, eventType string, data map[string]interface{}) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -143,20 +140,4 @@ func (s *WebhookService) isEventEnabled(webhook *models.Webhook, eventType strin
 
 	enabled, exists := enabledEvents[eventType]
 	return exists && enabled
-}
-
-// isProjectSpecificEvent determines if an event type is project-specific
-// Project-specific events must always have a project link
-func (s *WebhookService) isProjectSpecificEvent(eventType string) bool {
-	projectEvents := map[string]bool{
-		EventProjectActivated:    true,
-		EventProjectDeactivated:  true,
-		EventCacheMiss:           true,
-		EventCacheHit:            true,
-		EventUpstreamUnreachable: true,
-		EventUpstreamTimeout:     true,
-		EventRequestFailed:       true,
-		EventErrorRateHigh:       true,
-	}
-	return projectEvents[eventType]
 }

@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+
 	"github.com/trafiks/trafiks/api/repository"
 	"github.com/trafiks/trafiks/cfg"
 	"github.com/trafiks/trafiks/pkg"
@@ -17,26 +19,66 @@ func NewServiceSourceManager(
 	config *cfg.Config,
 	serviceRepo repository.ServiceRepoClient,
 ) *source.ServiceSourceManager {
+	ctx := context.Background()
+
 	manager := source.NewServiceSourceManager()
 
-	// Always register the core Trafiks source
-	trafiksSource := source.NewTrafiksSource(serviceRepo)
-	manager.Register(trafiksSource)
+	manager.Register(source.NewTrafiksSource(serviceRepo))
 
-	// Conditionally register Docker source if socket path is configured
-	if config.Docker.SocketPath != "" {
-		dockerSource, err := source.NewDockerSource(
-			serviceRepo,
-			config.Docker.SocketPath,
-			logger,
-		)
-		if err != nil {
-			logger.Warnf("Failed to initialize Docker source: %v. Docker source will be disabled.", err)
-		} else {
-			manager.Register(dockerSource)
-			logger.Infof("Docker source enabled (socket: %s)", config.Docker.SocketPath)
-		}
-	}
+	registerDockerSource(ctx, manager, config, serviceRepo, logger)
+	registerKubernetesSource(ctx, manager, config, serviceRepo, logger)
 
 	return manager
+}
+
+// registerDockerSource attempts to register Docker as a service discovery source
+func registerDockerSource(
+	ctx context.Context,
+	manager *source.ServiceSourceManager,
+	config *cfg.Config,
+	serviceRepo repository.ServiceRepoClient,
+	logger pkg.LoggerClient,
+) {
+	if config.Docker.SocketPath == "" {
+		logger.Info("Docker source disabled: no socket path configured")
+		return
+	}
+
+	dockerSource, err := source.NewDockerSource(
+		ctx,
+		serviceRepo,
+		config.Docker.SocketPath,
+		logger,
+	)
+	if err != nil {
+		logger.Warnf("failed to initialize Docker source: %v", err)
+		return
+	}
+
+	manager.Register(dockerSource)
+
+	logger.Infof("Docker source enabled socket: %s", config.Docker.SocketPath)
+}
+
+// registerKubernetesSource attempts to register Kubernetes as a service discovery source
+func registerKubernetesSource(
+	ctx context.Context,
+	manager *source.ServiceSourceManager,
+	config *cfg.Config,
+	serviceRepo repository.ServiceRepoClient,
+	logger pkg.LoggerClient,
+) {
+	k8sSource, err := source.NewKubernetesSource(
+		ctx,
+		serviceRepo,
+		config.Kubernetes.KubeconfigPath,
+		logger,
+	)
+	if err != nil {
+		logger.Warnf("failed to initialize Kubernetes source: %v", err)
+		return
+	}
+
+	manager.Register(k8sSource)
+	logger.Infof("Kubernetes source enabled")
 }

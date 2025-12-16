@@ -365,14 +365,9 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 		ctx, &models.Webhook{UserID: service.Project.UserID, IsActive: pkg.BoolPtr(true)})
 	if err != nil {
 		p.logger.Warnf("failed to fetch webhook %v", err)
-
-		response.Error = fmt.Errorf("failed to fetch webhook")
-		response.ErrorMessage = "Failed to fetch webhook"
-		response.StatusCode = http.StatusInternalServerError
-		return response
 	}
 
-	if !cacheHit && p.webhookService != nil {
+	if !cacheHit && p.webhookService != nil && webhook != nil {
 		go p.webhookService.SendEvent(
 			webhook.ID,
 			EventCacheMiss,

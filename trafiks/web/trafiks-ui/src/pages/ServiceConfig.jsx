@@ -44,6 +44,11 @@ export default function ServiceConfig() {
   const [dockerNetwork, setDockerNetwork] = useState("");
   const [dockerPort, setDockerPort] = useState("");
 
+  // Kubernetes configuration state
+  const [k8sNamespace, setK8sNamespace] = useState("");
+  const [k8sServiceName, setK8sServiceName] = useState("");
+  const [k8sServicePort, setK8sServicePort] = useState("");
+
   // Unified configuration state
   const [config, setConfig] = useState({
     headers: {
@@ -146,6 +151,18 @@ export default function ServiceConfig() {
           setDockerNetwork("");
           setDockerPort("");
         }
+
+        // Initialize Kubernetes configuration
+        if (serviceData.source === "kubernetes" && serviceConfig.kubernetes) {
+          const k8sConfig = serviceConfig.kubernetes;
+          setK8sNamespace(k8sConfig.namespace || "");
+          setK8sServiceName(k8sConfig.service_name || "");
+          setK8sServicePort(k8sConfig.service_port || "");
+        } else {
+          setK8sNamespace("");
+          setK8sServiceName("");
+          setK8sServicePort("");
+        }
       } catch (serviceError) {
         // Service doesn't exist yet - that's okay, user can create it
         console.log("No service found, user can create one");
@@ -166,6 +183,9 @@ export default function ServiceConfig() {
         setDockerLabels([{ key: "", value: "" }]);
         setDockerNetwork("");
         setDockerPort("");
+        setK8sNamespace("");
+        setK8sServiceName("");
+        setK8sServicePort("");
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -175,14 +195,12 @@ export default function ServiceConfig() {
     }
   };
 
-  // Unified handler for configuration changes
   const handleConfigChange = (path, value) => {
     setConfig((prev) => {
       const newConfig = JSON.parse(JSON.stringify(prev)); // Deep clone
       const keys = path.split(".");
       let current = newConfig;
 
-      // Navigate to the nested property
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
           current[keys[i]] = {};
@@ -190,13 +208,11 @@ export default function ServiceConfig() {
         current = current[keys[i]];
       }
 
-      // Set the final value
       current[keys[keys.length - 1]] = value;
       return newConfig;
     });
   };
 
-  // Helper for comma-separated string inputs (headers/query params to remove)
   const handleCommaSeparatedChange = (path, value) => {
     const array = value
       .split(",")
@@ -275,6 +291,22 @@ export default function ServiceConfig() {
           }
           if (dockerPort.trim()) {
             configuration.docker.port = dockerPort.trim();
+          }
+        }
+      }
+
+      // Set Kubernetes configuration if source is kubernetes
+      if (source === "kubernetes") {
+        if (k8sNamespace || k8sServiceName || k8sServicePort) {
+          configuration.kubernetes = {};
+          if (k8sNamespace.trim()) {
+            configuration.kubernetes.namespace = k8sNamespace.trim();
+          }
+          if (k8sServiceName.trim()) {
+            configuration.kubernetes.service_name = k8sServiceName.trim();
+          }
+          if (k8sServicePort.trim()) {
+            configuration.kubernetes.service_port = k8sServicePort.trim();
           }
         }
       }
@@ -440,14 +472,26 @@ export default function ServiceConfig() {
                 if (e.target.value !== "trafiks") {
                   setTargetBackendURL("");
                 }
+                // Clear Kubernetes config when switching away from kubernetes
+                if (e.target.value !== "kubernetes") {
+                  setK8sNamespace("");
+                  setK8sServiceName("");
+                  setK8sServicePort("");
+                }
+                // Clear Docker config when switching away from docker
+                if (e.target.value !== "docker") {
+                  setDockerLabels([{ key: "", value: "" }]);
+                  setDockerNetwork("");
+                  setDockerPort("");
+                }
               }}
               className="input-field"
-              disabled={loading || saving}
+              disabled={loading || saving || source === "kubernetes"}
             >
               <option value="trafiks">Trafiks (Manual URL)</option>
               <option value="docker">Docker</option>
               <option value="kubernetes" disabled>
-                Kubernetes (Coming Soon)
+                Kubernetes (Operator Managed)
               </option>
             </select>
             <div
@@ -474,8 +518,22 @@ export default function ServiceConfig() {
                   </div>
                 </>
               )}
-              {source === "kubernetes" &&
-                "Use Kubernetes selectors to discover services"}
+              {source === "kubernetes" && (
+                <>
+                  <div>This service is managed by the Kubernetes operator.</div>
+                  <div
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "12px",
+                      color: "var(--warning-text, #f59e0b)",
+                    }}
+                  >
+                    Kubernetes source services can only be created and updated
+                    via Kubernetes Custom Resources (TrafiksProxy). This view is
+                    read-only.
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div
@@ -497,7 +555,7 @@ export default function ServiceConfig() {
                 }
               }}
               className="input-field"
-              disabled={loading || saving}
+              disabled={loading || saving || source === "kubernetes"}
             >
               <option value="http">HTTP</option>
               <option value="https">HTTPS</option>
@@ -716,22 +774,91 @@ export default function ServiceConfig() {
               </div>
             </Card>
           )}
-          {source !== "trafiks" && source !== "docker" && (
-            <div
-              style={{
-                marginTop: "16px",
-                padding: "16px",
-                backgroundColor: "var(--bg-secondary)",
-                borderRadius: "8px",
-                maxWidth: "600px",
-              }}
-            >
-              <div style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
-                For {source} source, you'll configure service discovery using
-                labels/selectors in the Configuration section below.
+          {source === "kubernetes" && (
+            <Card style={{ marginTop: "24px" }}>
+              <h2 className="section-title">Kubernetes Configuration</h2>
+              <div className="form-section">
+                <div style={{ marginBottom: "24px" }}>
+                  <Input
+                    label="Namespace"
+                    value={k8sNamespace}
+                    onChange={(e) => setK8sNamespace(e.target.value)}
+                    placeholder="default"
+                    required
+                    style={{ maxWidth: "600px" }}
+                  />
+                  <div
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "12px",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    The Kubernetes namespace where your service is deployed
+                  </div>
+                </div>
+                <div style={{ marginBottom: "24px" }}>
+                  <Input
+                    label="Service Name"
+                    value={k8sServiceName}
+                    onChange={(e) => setK8sServiceName(e.target.value)}
+                    placeholder="my-api-service"
+                    required
+                    style={{ maxWidth: "600px" }}
+                  />
+                  <div
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "12px",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    The name of the Kubernetes Service resource
+                  </div>
+                </div>
+                <div>
+                  <Input
+                    label="Service Port"
+                    value={k8sServicePort}
+                    onChange={(e) => setK8sServicePort(e.target.value)}
+                    placeholder="8080 or http"
+                    required
+                    style={{ maxWidth: "600px" }}
+                  />
+                  <div
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "12px",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    Port number (e.g., 8080) or port name (e.g., http) from the
+                    Service definition
+                  </div>
+                </div>
               </div>
-            </div>
+            </Card>
           )}
+          {source !== "trafiks" &&
+            source !== "docker" &&
+            source !== "kubernetes" && (
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "16px",
+                  backgroundColor: "var(--bg-secondary)",
+                  borderRadius: "8px",
+                  maxWidth: "600px",
+                }}
+              >
+                <div
+                  style={{ fontSize: "14px", color: "var(--text-secondary)" }}
+                >
+                  For {source} source, you'll configure service discovery using
+                  labels/selectors in the Configuration section below.
+                </div>
+              </div>
+            )}
         </div>
       </Card>
       <Card>
@@ -945,16 +1072,24 @@ export default function ServiceConfig() {
           variant="primary"
           onClick={handleSave}
           disabled={
+            loading ||
             saving ||
+            source === "kubernetes" ||
             !proxyURL ||
             (source === "trafiks" && !targetBackendURL) ||
             (source === "docker" &&
               (!dockerPort ||
-                dockerLabels.every((l) => !l.key.trim() || !l.value.trim())))
+                dockerLabels.every((l) => !l.key.trim() || !l.value.trim()))) ||
+            (source === "kubernetes" &&
+              (!k8sNamespace || !k8sServiceName || !k8sServicePort))
           }
           size="large"
         >
-          {saving ? "Saving..." : "Save Configuration"}
+          {source === "kubernetes"
+            ? "Read-Only (Operator Managed)"
+            : saving
+            ? "Saving..."
+            : "Save Configuration"}
         </Button>
       </div>
     </div>
