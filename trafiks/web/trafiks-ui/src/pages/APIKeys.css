@@ -1,0 +1,52 @@
+.api-keys-page {
+  width: 100%;
+}
+
+/* Page header, loading, and button styles now handled by reusable components */
+
+.create-key-card {
+  margin-bottom: 24px;
+}
+
+.create-key-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.create-key-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.create-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.create-key-input {
+  max-width: 500px;
+}
+
+.create-key-hint {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: -8px 0 0 0;
+}
+
+.create-key-error {
+  color: var(--error-red);
+  font-size: 14px;
+  padding: 12px;
+  background-color: #fee2e2;
+  border-radius: 6px;
+  border: 1px solid var(--error-red);
+}
+
+/* Form actions, section headers, table, empty state, and code text styles now handled by reusable components */
+
+/* Modal styles now handled by Modal component */

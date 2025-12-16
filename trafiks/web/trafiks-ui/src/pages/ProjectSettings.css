@@ -1,0 +1,92 @@
+.project-settings-page {
+  width: 100%;
+}
+
+/* Page header, loading, form sections, and form actions now handled by reusable components */
+
+.danger-zone {
+  border: 2px solid var(--error-red);
+}
+
+.danger-zone-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.danger-zone-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--error-red);
+}
+
+.danger-zone-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.danger-button {
+  max-width: 200px;
+}
+
+.delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background-color: #fef2f2;
+  border-radius: 6px;
+  border: 1px solid var(--error-red);
+}
+
+.delete-confirm-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.delete-confirm-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+/* Loading and error states now handled by utility classes */
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.status-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.status-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.status-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.status-indicator-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Status indicator pulse animation now handled by utilities.css (.status-dot.pulse) */
+
+/* Modal styles now handled by Modal component */

@@ -1,0 +1,314 @@
+# Default values for trafiks-charts.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Backend (API Server) Configuration
+backend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: olamilekan001/trafiks-backend
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "latest"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Agent (Background Processor) Configuration
+agent:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: olamilekan001/trafiks-agent
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "latest"
+
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Legacy support - will be removed
+replicaCount: 1
+image:
+  repository: olamilekan001/trafiks-backend
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  {}
+  # fsGroup: 2000
+
+securityContext:
+  {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8889
+  targetPort: 8889
+  # TLS/HTTPS port configuration
+  tlsPort: 8443
+  tlsTargetPort: 8443
+
+ingress:
+  # Enable ingress to expose the backend service
+  enabled: true
+  # Traefik ingress class name
+  # Common values: "traefik", "traefik-internal", or check with: kubectl get ingressclass
+  className: "traefik"
+  # Enable automatic HTTP to HTTPS redirect (requires TLS to be enabled)
+  httpsRedirect: false
+  annotations:
+    # Entrypoints: web (HTTP), websecure (HTTPS)
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    # Enable TLS/HTTPS
+    # traefik.ingress.kubernetes.io/router.tls: "true"
+    # Certificate resolver for Let's Encrypt (recommended for production)
+    # Configure cert resolver in Traefik, then uncomment and set:
+    # traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    # traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+  hosts:
+    - host: trafikscloud.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: myapi.dozzss.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  # TLS configuration (standard Kubernetes format)
+  # For automatic Let's Encrypt: Leave empty array and set certResolver in annotations
+  # For manual certificate: Provide secretName and hosts
+  tls:
+    []
+    # Example for manual certificate:
+    # - secretName: trafiks-tls
+    #   hosts:
+    #     - trafikscloud.cloud
+
+# Legacy resources - use backend.resources or agent.resources instead
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Application Configuration
+config:
+  # Server configuration
+  logLevel: "info"
+  logOutput: "stdout"
+  serverPort: "8889"
+  # TLS/HTTPS port for serving HTTPS requests (for services with HTTPS scheme)
+  # Note: TLS termination is typically handled by ingress controller in K8s
+  # This port is used internally for SNI certificate selection
+  tlsPort: "8443"
+  # API Base URL for frontend - injected at runtime into the React app
+  # Set to empty string "" to use relative URLs (recommended when frontend/backend are same origin)
+  # Set to full URL (e.g., "https://api.example.com") if frontend needs to call different origin
+  # This is injected into the HTML and can be changed via Helm values without rebuilding
+  appBaseURL: "" # Empty = relative URLs (works for K8s ingress)
+  environment: "production"
+
+  # Dashboard configuration
+  dashboard:
+    enabled: true # Set to false to disable the dashboard UI
+
+  # Bootstrap user configuration (created on first startup if doesn't exist)
+  bootstrap:
+    user:
+      email: "admin@trafiks.local"
+      password: "admin123"
+      first_name: "admin"
+      last_name: "user"
+
+  # Database configuration
+  # Note: If dependencies.postgres.enabled is true, host/user/password/name will be auto-configured
+  database:
+    enabled: true
+    # Host for the external database
+    host: "postgresql"
+    # Port for the external database
+    port: 5432
+    # Username for the external database
+    username: "postgres"
+    # Password for the external database, ignored in case of secret parameter with non-empty value
+    password: "postgres"
+    # If this secret parameter is not empty, the password value will be ignored. The password in the secret should be in the 'password' key
+    secret: ""
+    # Password for the postgres superuser (for external databases)
+    postgresPassword: "postgres"
+    # Database name for the external database
+    database: "trafiks"
+    # Query params for the external database
+    options: "sslmode=disable&connect_timeout=30"
+    # SSL mode (extracted from options if not set, or can be set directly)
+    sslMode: "disable"
+    # Disable PostgreSQL/GORM query logging
+    log_enabled: false
+
+  # Redis configuration
+  # Note: If dependencies.redis.enabled is true, host will be auto-configured
+  redis:
+    host: "redis-service:6379" # Ignored if dependencies.redis.enabled is true
+    username: ""
+    password: "" # Ignored if dependencies.redis.enabled is true (uses dependencies.redis.redis.auth.password)
+    db: 0
+
+  # JWT Secret (should be set via secret in production)
+  jwtSecret: ""
+
+  # Docker source configuration (for Docker Compose/Swarm environments only)
+  # Note: Not applicable for Kubernetes deployments - leave empty
+  # In Kubernetes, use the Kubernetes source instead (when implemented)
+  docker:
+    socketPath: "" # Leave empty for K8s, set to "unix:///var/run/docker.sock" for Docker environments
+
+  # Proxy configuration
+  proxy:
+    upstreamURL: "https://eu.getconvoy.cloud"
+    pathPrefix: "/ingest"
+    timeout: 30
+    cacheEnabled: false
+    cacheTTL: 300
+    cacheableMethods: ["GET"]
+
+# Secrets (should be created separately or via external-secrets)
+secrets:
+  # Name of the secret containing config.json
+  # Default: trafiks-secrets
+  name: "trafiks-secrets"
+  # Set to true to use existing secrets
+  useExisting: false
+  # Name of existing secret containing database password, jwt secret, etc.
+  # If using existing secret with JSON config, it should have a 'config.json' key
+  existingSecretName: ""
+  # Path where config.json will be mounted (default: /etc/trafiks/config.json)
+  configMountPath: "/etc/trafiks/config.json"
+
+# Database and Redis dependencies
+# Set enabled: true to install PostgreSQL and Redis as part of this chart
+# Set enabled: false to use external services (update config.database.host and config.redis.host)
+dependencies:
+  postgres:
+    enabled: true
+  redis:
+    enabled: true
+
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: 17.6.0-debian-12-r4
+    pullPolicy: IfNotPresent
+  # External database configuration (when dependencies.postgres.enabled is false)
+  # Host for the external database
+  host: "postgresql"
+  # Port for the external database
+  port: 5432
+  # Username for the external database
+  username: "postgres"
+  # Password for the external database, ignored in case of secret parameter with non-empty value
+  password: "postgres"
+  # If this secret parameter is not empty, the password value will be ignored. The password in the secret should be in the 'password' key
+  secret: ""
+  # Password for the postgres superuser
+  postgresPassword: "postgres"
+  # Database name for the external database
+  database: "trafiks"
+  # Query params for the external database
+  options: "sslmode=disable&connect_timeout=30"
+  # Bitnami PostgreSQL subchart auth configuration (when dependencies.postgres.enabled is true)
+  # Note: When username is "postgres", do not set auth.username (use postgres superuser)
+  # When username is different, set auth.username and auth.password for custom user
+  auth:
+    postgresPassword: "postgres" # Password for postgres superuser (used when username is "postgres")
+    database: "trafiks"
+    # username: "postgres" # Do not set when using postgres superuser - leave commented or remove
+    # password: "postgres" # Only needed for custom users (when username is not "postgres")
+  persistence:
+    enabled: true
+    size: 8Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+redis:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: 8.2.1-debian-12-r0
+    pullPolicy: IfNotPresent
+  auth:
+    enabled: false
+    password: ""
+  master:
+    persistence:
+      enabled: true
+      size: 4Gi
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  replica:
+    replicaCount: 0 # Set to 1+ for HA
+    persistence:
+      enabled: true
+      size: 4Gi

@@ -1,0 +1,13 @@
+{{- if .Values.ingress.httpsRedirect }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "trafiks-charts.fullname" . }}-https-redirect
+  labels:
+    {{- include "trafiks-charts.labels" . | nindent 4 }}
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+{{- end }}
+

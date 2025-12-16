@@ -1,0 +1,53 @@
+{
+  "log_level": "debug",
+  "log_output": "stdout",
+  "server_port": "8889",
+  "tls_port": "8443",
+  "app_base_url": "http://localhost:8889",
+  "environment": "local",
+  "dashboard": {
+    "enabled": true
+  },
+  "bootstrap": {
+    "user": {
+      "email": "admin@trafiks.local",
+      "password": "admin123",
+      "first_name": "admin",
+      "last_name": "user"
+    }
+  },
+  "database": {
+    "host": "your-postgres-host",
+    "port": 5432,
+    "user": "your-postgres-user",
+    "password": "your-postgres-password",
+    "name": "your-database-name",
+    "ssl_mode": "require",
+    "log_enabled": false
+  },
+  "jwt_secret": "2pPLTGtIGEDhvIDPJBYp/c8gzV5bRacq9QE7pDpBEdM26AmONv0+6crsf+suz/Nn",
+  "redis": {
+    "host": "localhost",
+    "username": "",
+    "password": "",
+    "db": 0
+  },
+  "docker": {
+    "socket_path": ""
+  },
+  "mailer": {
+    "key": "your-resend-api-key"
+  },
+  "paystack": {
+    "base_url": "https://api.paystack.co",
+    "secret": "your-paystack-secret-key"
+  },
+  "proxy": {
+    "upstream_url": "https://eu.getconvoy.cloud",
+    "path_prefix": "/ingest",
+    "timeout": 30,
+    "cache_enabled": false,
+    "cache_ttl": 300,
+    "cacheable_methods": ["GET"]
+  }
+}

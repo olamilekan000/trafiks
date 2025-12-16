@@ -1,0 +1,13 @@
+.project-layout-container {
+  display: flex;
+  gap: 0;
+  align-items: flex-start;
+  min-height: calc(100vh - 64px - 48px);
+  width: 100%;
+}
+
+.project-layout-content {
+  flex: 1;
+  padding-left: 24px;
+  width: 100%;
+}

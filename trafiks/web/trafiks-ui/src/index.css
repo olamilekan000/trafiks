@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@import "./styles/utilities.css";
+
+@theme {
+  --color-primary-blue: #3b82f6;
+  --color-primary-blue-dark: #2563eb;
+  --color-success-green: #10b981;
+  --color-error-red: #ef4444;
+  --color-warning: #f59e0b;
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #6b7280;
+  --color-bg-white: #ffffff;
+  --color-bg-gray: #f3f4f6;
+  --color-bg-gray-light: #f9fafb;
+  --color-border-gray: #e5e7eb;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Maintain compatibility with existing CSS files */
+:root {
+  --primary-blue: var(--color-primary-blue);
+  --primary-blue-dark: var(--color-primary-blue-dark);
+  --success-green: var(--color-success-green);
+  --error-red: var(--color-error-red);
+  --warning: var(--color-warning);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --bg-white: var(--color-bg-white);
+  --bg-gray: var(--color-bg-gray);
+  --bg-gray-light: var(--color-bg-gray-light);
+  --border-gray: var(--color-border-gray);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-gray-light);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}

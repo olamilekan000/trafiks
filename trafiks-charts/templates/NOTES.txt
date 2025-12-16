@@ -1,0 +1,8 @@
+Trafiks has been deployed!
+
+{{- if .Values.backend.enabled }}
+Backend (API Server) is enabled.
+{{- end }}
+{{- if .Values.agent.enabled }}
+Agent (Background Processor) is enabled.
+{{- end }}

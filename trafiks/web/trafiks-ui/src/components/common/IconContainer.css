@@ -1,0 +1,29 @@
+.icon-container {
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, #8b5cf6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.icon-container-small {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-container-medium {
+  width: 40px;
+  height: 40px;
+}
+
+.icon-container-large {
+  width: 48px;
+  height: 48px;
+}
+
+.icon-container svg,
+.icon-container i {
+  color: white;
+}

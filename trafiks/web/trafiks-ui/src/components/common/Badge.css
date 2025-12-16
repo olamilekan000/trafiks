@@ -1,0 +1,34 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-default {
+  background-color: var(--bg-gray);
+  color: var(--text-primary);
+}
+
+.badge-success {
+  background-color: #d1fae5;
+  color: var(--success-green);
+}
+
+.badge-error {
+  background-color: #fee2e2;
+  color: var(--error-red);
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: var(--warning);
+}
+
+.badge-info {
+  background-color: #dbeafe;
+  color: var(--primary-blue);
+}

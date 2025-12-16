@@ -1,0 +1,147 @@
+.service-config-page {
+  width: 100%;
+}
+
+/* Page header, loading, form sections, section titles, and form actions now handled by reusable components */
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.textarea-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.textarea-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.config-textarea {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-gray);
+  border-radius: 6px;
+  background-color: white;
+  color: var(--text-primary);
+  font-family: monospace;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.config-textarea:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.key-value-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.key-value-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.key-value-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.key-value-input {
+  flex: 1;
+}
+
+.key-value-remove-button {
+  flex-shrink: 0;
+  padding: 8px;
+  color: var(--error-red);
+  min-width: auto;
+}
+
+.key-value-remove-button:hover {
+  background-color: #fee2e2;
+  color: var(--error-red);
+}
+
+.key-value-add-button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.proxy-url-banner {
+  margin: 24px 0;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.proxy-url-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.proxy-url-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.proxy-url-value {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 16px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #667eea;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.proxy-url-copy-button {
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  min-width: auto;
+  transition: all 0.2s;
+}
+
+.proxy-url-copy-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}

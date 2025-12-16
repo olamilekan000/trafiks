@@ -1,0 +1,23 @@
+{{- if .Values.backend.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "trafiks-charts.fullname" . }}-backend
+  labels:
+    {{- include "trafiks-charts.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort | default .Values.service.port }}
+      protocol: TCP
+      name: http
+    - port: {{ .Values.service.tlsPort | default 8443 }}
+      targetPort: {{ .Values.service.tlsTargetPort | default 8443 }}
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "trafiks-charts.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+{{- end }}

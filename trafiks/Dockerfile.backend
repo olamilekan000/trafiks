@@ -1,0 +1,57 @@
+# Build stage for UI
+FROM node:20-alpine AS ui-builder
+
+WORKDIR /build
+
+# Copy UI source
+COPY web/trafiks-ui/package*.json ./web/trafiks-ui/
+RUN cd web/trafiks-ui && npm ci
+
+COPY web/trafiks-ui/ ./web/trafiks-ui/
+# Build UI - output will go to routes/dist (relative to project root)
+RUN cd web/trafiks-ui && npm run build
+
+# Build stage for Go backend
+FROM golang:1.24-alpine AS go-builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+# Copy source code
+COPY . .
+
+# Copy built UI from ui-builder to routes/dist
+# The UI build outputs to routes/dist relative to project root
+COPY --from=ui-builder /build/routes/dist ./routes/dist
+
+# Build the backend binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo \
+    -ldflags="-w -s" \
+    -o /app/trafiks \
+    ./cmd/server/main.go
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=go-builder /app/trafiks .
+
+# Create config directory structure for default viper path
+# Viper is configured to look in: $HOME/.config/trafiks
+# Since we are running as root (no USER set), $HOME is /root
+RUN mkdir -p /root/.config/trafiks
+
+EXPOSE 8889
+
+# Run backend with default config discovery (no explicit -config flag)
+CMD ["./trafiks"]

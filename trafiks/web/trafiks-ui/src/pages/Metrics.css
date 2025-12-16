@@ -1,0 +1,73 @@
+.metrics-page {
+  width: 100%;
+}
+
+/* Page header, loading, and controls now handled by reusable components */
+
+.metrics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.summary-icon {
+  margin-bottom: 0;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.summary-value.error {
+  color: var(--error-red);
+}
+
+.summary-value.success {
+  color: var(--success-green);
+}
+
+.summary-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.metrics-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.chart-card {
+  padding: 24px;
+  min-height: 350px;
+}
+
+.chart-card .section-title {
+  margin-bottom: 20px;
+}
+
+.chart-card .recharts-wrapper {
+  width: 100% !important;
+}

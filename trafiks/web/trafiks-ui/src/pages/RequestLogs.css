@@ -1,0 +1,171 @@
+.request-logs-page {
+  width: 100%;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.filter-select,
+.filter-input {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-gray);
+  border-radius: 6px;
+  background-color: white;
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.path-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.path-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.query-string {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+/* Pagination, empty state, and loading styles now handled by reusable components */
+
+.view-details-button {
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s;
+  min-width: 120px;
+  padding: 8px 16px;
+}
+
+.view-details-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Modal styles now handled by Modal component */
+
+.detail-section {
+  margin-bottom: 20px;
+  background-color: var(--bg-gray-light);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border-gray);
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-gray);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--primary-blue);
+}
+
+/* Detail item styles now handled by utilities.css */
+
+.cache-badge {
+  font-size: 13px;
+  padding: 6px 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cache-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cache-hit-badge {
+  background-color: var(--success-green) !important;
+  color: white !important;
+}
+
+.cache-miss-badge {
+  background-color: var(--text-secondary) !important;
+  color: white !important;
+}
+
+/* Code block styles now handled by utilities.css (.code-block) */
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.replay-error {
+  padding: 16px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+}
+
+.replay-error p {
+  margin: 8px 0 0 0;
+  color: var(--error-red);
+}
+
+.replay-success {
+  padding: 16px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+}
+
+.replay-result-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.replay-result-header span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

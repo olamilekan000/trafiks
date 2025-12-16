@@ -1,0 +1,117 @@
+.projects-page {
+  width: 100%;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.project-card {
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-card-create {
+  border: 2px dashed var(--border-gray);
+  background-color: var(--bg-gray-light);
+}
+
+.project-card-create-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+}
+
+.project-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--primary-blue);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 300;
+}
+
+.project-card-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.project-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-card-status-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* Status indicator styles now handled by utilities.css (.status-dot.pulse) */
+
+.project-card-icon-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: var(--bg-gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.project-card-icon-small svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+}
+
+.project-card-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.project-card-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.project-card-service-url {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-gray);
+}
+
+.service-url-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Service URL code text now handled by utilities.css (.code-text) */
+/* Loading styles now handled by utilities.css (.loading-full) */
