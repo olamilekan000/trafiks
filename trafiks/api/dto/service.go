@@ -58,10 +58,10 @@ type DockerConfigRequest struct {
 }
 
 type KubernetesConfigRequest struct {
-	Namespace   string            `json:"namespace,omitempty"`
-	ServiceName string            `json:"service_name,omitempty"`
-	ServicePort string            `json:"service_port,omitempty"`
-	Selector    map[string]string `json:"selector,omitempty"`
+	Namespace       string            `json:"namespace,omitempty"`
+	ServiceName     string            `json:"service_name,omitempty"`
+	ServicePortName string            `json:"service_port_name,omitempty"`
+	Selector        map[string]string `json:"selector,omitempty"`
 }
 
 type HeadersConfigRequest struct {
@@ -238,10 +238,10 @@ func (s *ServiceConfigRequest) ToServiceConfig() *models.ServiceConfig {
 
 	if s.Kubernetes != nil {
 		config.Kubernetes = &models.KubernetesConfig{
-			Namespace:   s.Kubernetes.Namespace,
-			ServiceName: s.Kubernetes.ServiceName,
-			ServicePort: s.Kubernetes.ServicePort,
-			Selector:    s.Kubernetes.Selector,
+			Namespace:       s.Kubernetes.Namespace,
+			ServiceName:     s.Kubernetes.ServiceName,
+			ServicePortName: s.Kubernetes.ServicePortName,
+			Selector:        s.Kubernetes.Selector,
 		}
 	}
 

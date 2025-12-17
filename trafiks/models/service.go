@@ -38,30 +38,30 @@ func TrimScheme(url string) string {
 type ServiceConfig struct {
 	Headers       HeadersConfig     `json:"headers,omitempty" gorm:"type:jsonb"`
 	QueryParams   QueryParamsConfig `json:"query_params,omitempty" gorm:"type:jsonb"`
-	HTTPSRedirect *bool             `json:"https_redirect,omitempty"` // If true, redirect HTTP to HTTPS; if false, reject; if nil, default to true
-	Docker        *DockerConfig     `json:"docker,omitempty"`         // Docker-specific configuration
-	Kubernetes    *KubernetesConfig `json:"kubernetes,omitempty"`     // Kubernetes-specific configuration
+	HTTPSRedirect *bool             `json:"https_redirect,omitempty"`
+	Docker        *DockerConfig     `json:"docker,omitempty"`
+	Kubernetes    *KubernetesConfig `json:"kubernetes,omitempty"`
 	// Future: RateLimit, Retry, Timeouts, etc.
 }
 
 // DockerConfig contains Docker-specific service discovery configuration
 type DockerConfig struct {
-	Labels  map[string]string `json:"labels"`  // Docker labels to match containers (e.g., {"trafiks.service": "my-api"})
-	Network string            `json:"network"` // Optional: Docker network name (e.g., "bridge", "custom-network")
-	Port    string            `json:"port"`    // Container port to use (e.g., "8080")
+	Labels  map[string]string `json:"labels"`
+	Network string            `json:"network"`
+	Port    string            `json:"port"`
 }
 
 // KubernetesConfig contains Kubernetes-specific service discovery configuration
 type KubernetesConfig struct {
-	Namespace   string            `json:"namespace"`          // K8s namespace (e.g., "default")
-	ServiceName string            `json:"service_name"`       // K8s Service name
-	ServicePort string            `json:"service_port"`       // Port name or number (e.g., "http", "8080")
-	Selector    map[string]string `json:"selector,omitempty"` // Optional: label selector (e.g., {"app": "my-api"})
+	Namespace       string            `json:"namespace"`
+	ServiceName     string            `json:"service_name"`
+	ServicePortName string            `json:"service_port_name"`
+	Selector        map[string]string `json:"selector,omitempty"`
 }
 
 type HeadersConfig struct {
-	Remove []string          `json:"remove,omitempty"` // Headers to remove
-	Add    map[string]string `json:"add,omitempty"`    // Headers to add
+	Remove []string          `json:"remove,omitempty"`
+	Add    map[string]string `json:"add,omitempty"`
 }
 
 func (h HeadersConfig) Value() (driver.Value, error) {
@@ -72,7 +72,6 @@ func (h HeadersConfig) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-// Unmarshal from DB
 func (h *HeadersConfig) Scan(value interface{}) error {
 	if value == nil {
 		return nil
@@ -87,7 +86,7 @@ func (h *HeadersConfig) Scan(value interface{}) error {
 }
 
 type QueryParamsConfig struct {
-	Remove []string `json:"remove,omitempty"` // Query params to remove
+	Remove []string `json:"remove,omitempty"`
 }
 
 func (q QueryParamsConfig) Value() (driver.Value, error) {
@@ -116,16 +115,16 @@ type Service struct {
 	ID               uint           `json:"-" gorm:"primaryKey;unique"`
 	UID              string         `gorm:"not null;uniqueIndex"`
 	ProjectID        uint           `gorm:"not null;index"`
-	Source           string         `gorm:"default:'trafiks'"`    // Service source/provider (trafiks, kubernetes, docker, etc.)
-	Scheme           string         `gorm:"default:'http'"`       // Proxy URL scheme (http, https)
-	TargetBackendURL string         `gorm:"not null"`             // Required for trafiks source, optional for others
-	ProxyURL         string         `gorm:"not null;uniqueIndex"` // Domain only, no scheme
-	TLSCertificate   string         `gorm:"type:text"`            // PEM encoded TLS certificate (for HTTPS)
-	TLSKey           string         `gorm:"type:text"`            // PEM encoded TLS private key (for HTTPS)
-	TLSCertResolver  string         `gorm:"default:'selfsigned'"` // Certificate resolver: selfsigned, letsencrypt, manual
-	CacheEnabled     bool           `gorm:"default:false"`        // For easy querying
-	CacheTTL         int            `gorm:"default:300"`          // seconds, for easy querying
-	Configuration    datatypes.JSON `gorm:"type:jsonb"`           // For complex nested config
+	Source           string         `gorm:"default:'trafiks'"`
+	Scheme           string         `gorm:"default:'http'"`
+	TargetBackendURL string         `gorm:"not null"`
+	ProxyURL         string         `gorm:"not null"`
+	TLSCertificate   string         `gorm:"type:text"`
+	TLSKey           string         `gorm:"type:text"`
+	TLSCertResolver  string         `gorm:"default:'selfsigned'"`
+	CacheEnabled     bool           `gorm:"default:false"`
+	CacheTTL         int            `gorm:"default:300"`
+	Configuration    datatypes.JSON `gorm:"type:jsonb"`
 	CreatedAt        time.Time      `json:"CreatedAt"`
 	UpdatedAt        time.Time      `json:"UpdatedAt"`
 

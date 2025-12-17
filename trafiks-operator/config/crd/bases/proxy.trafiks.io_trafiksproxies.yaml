@@ -39,10 +39,104 @@ spec:
           spec:
             description: spec defines the desired state of TrafiksProxy
             properties:
-              foo:
-                description: foo is an example field of TrafiksProxy. Edit trafiksproxy_types.go
-                  to remove/update
+              backendRef:
+                description: BackendRef references the TrafiksBackend resource to
+                  use for API calls
+                properties:
+                  name:
+                    description: Name of the TrafiksBackend resource
+                    type: string
+                  namespace:
+                    description: Namespace of the TrafiksBackend resource (optional,
+                      defaults to TrafiksProxy namespace)
+                    type: string
+                required:
+                - name
+                type: object
+              cache:
+                description: Cache configuration
+                properties:
+                  enabled:
+                    default: false
+                    description: Enabled enables caching for this service
+                    type: boolean
+                  ttl:
+                    default: 300
+                    description: TTL is the cache time-to-live in seconds
+                    minimum: 1
+                    type: integer
+                type: object
+              headers:
+                description: Headers configuration
+                properties:
+                  add:
+                    additionalProperties:
+                      type: string
+                    description: Add is a map of headers to add to requests
+                    type: object
+                  remove:
+                    description: Remove is a list of headers to remove from requests
+                    items:
+                      type: string
+                    type: array
+                type: object
+              httpsRedirect:
+                description: |-
+                  HTTPS redirect configuration
+                  If true, redirect HTTP to HTTPS; if false, reject HTTP; if nil, default behavior
+                type: boolean
+              kubernetes:
+                description: Kubernetes-specific configuration
+                properties:
+                  namespace:
+                    description: Namespace is the Kubernetes namespace of the target
+                      service
+                    type: string
+                  selector:
+                    additionalProperties:
+                      type: string
+                    description: Selector is an optional label selector
+                    type: object
+                  serviceName:
+                    description: ServiceName is the name of the Kubernetes Service
+                    type: string
+                  servicePortName:
+                    description: |-
+                      ServicePortName is the port name to use (e.g., "http", "https")
+                      If not specified, the operator will use a port named "http" or the first available port
+                    type: string
+                required:
+                - namespace
+                - serviceName
+                type: object
+              projectName:
+                description: ProjectName is the required project name in Trafiks dashboard
                 type: string
+              proxyURL:
+                description: ProxyURL is the domain name for the proxy (e.g., "nginx.traffiked.cloud")
+                type: string
+              queryParams:
+                description: Query parameters configuration
+                properties:
+                  remove:
+                    description: Remove is a list of query parameters to remove from
+                      requests
+                    items:
+                      type: string
+                    type: array
+                type: object
+              scheme:
+                default: http
+                description: Scheme is the proxy URL scheme (http or https)
+                enum:
+                - http
+                - https
+                type: string
+            required:
+            - backendRef
+            - kubernetes
+            - projectName
+            - proxyURL
             type: object
           status:
             description: status defines the observed state of TrafiksProxy
@@ -50,12 +144,11 @@ spec:
               conditions:
                 description: |-
                   conditions represent the current state of the TrafiksProxy resource.
-                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
-
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
+                  Conditions used:
+                  - "Ready": Overall readiness (service synced and active in Trafiks)
+                  - "Synced": Service successfully synced to Trafiks backend
+                  - "BackendReachable": Trafiks backend is accessible
+                  - "ServiceResolved": Kubernetes service endpoint resolved
 
                   The status of each condition is one of True, False, or Unknown.
                 items:
@@ -116,6 +209,34 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              ingressRef:
+                description: IngressRef tracks which Ingress "owns" this TrafiksProxy
+                properties:
+                  name:
+                    description: Name of the Ingress resource
+                    type: string
+                  namespace:
+                    description: Namespace of the Ingress resource
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              lastSyncTime:
+                description: LastSyncTime is the timestamp of the last successful
+                  sync
+                format: date-time
+                type: string
+              projectName:
+                description: ProjectName is the name of the project in Trafiks
+                type: string
+              projectUID:
+                description: ProjectUID is the UID of the project in Trafiks (cached
+                  to avoid repeated lookups)
+                type: string
+              serviceUID:
+                description: ServiceUID is the UID of the service in Trafiks
+                type: string
             type: object
         required:
         - spec

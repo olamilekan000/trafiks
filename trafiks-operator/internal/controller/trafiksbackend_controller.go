@@ -38,8 +38,8 @@ import (
 // TrafiksBackendReconciler reconciles a TrafiksBackend object
 type TrafiksBackendReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	HTTPClient HTTPClient
+	Scheme    *runtime.Scheme
+	APIClient TrafiksAPIClient
 }
 
 // +kubebuilder:rbac:groups=proxy.trafiks.io,resources=trafiksbackends,verbs=get;list;watch;create;update;patch;delete
@@ -140,7 +140,7 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
-	available, availableReason, availableMessage := r.checkBackendReachable(ctx, baseURL)
+	available, availableReason, availableMessage := r.checkBackendReachable(ctx, baseURL, apiKey)
 	ready, readyReason, readyMessage := r.checkAuthentication(ctx, baseURL, apiKey)
 
 	SetCondition(&backend.Status.Conditions, "Available", available, availableReason, availableMessage, backend.Generation)
@@ -154,8 +154,8 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 }
 
-func (r *TrafiksBackendReconciler) checkBackendReachable(ctx context.Context, baseURL string) (metav1.ConditionStatus, string, string) {
-	statusCode, err := r.HTTPClient.SetBaseURL(baseURL).CheckHealth(ctx)
+func (r *TrafiksBackendReconciler) checkBackendReachable(ctx context.Context, baseURL, apiKey string) (metav1.ConditionStatus, string, string) {
+	statusCode, err := r.APIClient.SetBaseURL(baseURL).SetAPIKey(apiKey).CheckHealth(ctx)
 	if err != nil {
 		return metav1.ConditionFalse, "BackendUnreachable",
 			fmt.Sprintf("Cannot reach Trafiks backend: %v", err)
@@ -166,11 +166,11 @@ func (r *TrafiksBackendReconciler) checkBackendReachable(ctx context.Context, ba
 			fmt.Sprintf("Trafiks backend returned status %d", statusCode)
 	}
 
-	return metav1.ConditionTrue, "BackendReachable", "Trafiks backend at is reachable"
+	return metav1.ConditionTrue, "BackendReachable", "Trafiks backend is reachable"
 }
 
 func (r *TrafiksBackendReconciler) checkAuthentication(ctx context.Context, baseURL, apiKey string) (metav1.ConditionStatus, string, string) {
-	statusCode, err := r.HTTPClient.SetBaseURL(baseURL).CheckAuthentication(ctx, apiKey)
+	statusCode, err := r.APIClient.SetBaseURL(baseURL).SetAPIKey(apiKey).CheckAuthentication(ctx)
 	if err != nil {
 		return metav1.ConditionFalse, "BackendUnreachable",
 			fmt.Sprintf("Cannot reach Trafiks backend for authentication: %v", err)
@@ -191,27 +191,11 @@ func (r *TrafiksBackendReconciler) checkAuthentication(ctx context.Context, base
 }
 
 func (r *TrafiksBackendReconciler) updateStatus(ctx context.Context, nn types.NamespacedName, conditions []metav1.Condition, observedGeneration int64) error {
-	const maxRetries = 3
-	for i := 0; i < maxRetries; i++ {
-		backend := &proxyv1.TrafiksBackend{}
-		if err := r.Get(ctx, nn, backend); err != nil {
-			return err
-		}
-
+	backend := &proxyv1.TrafiksBackend{}
+	return updateStatusWithRetry(ctx, r.Client, nn, backend, func(obj client.Object) {
+		backend := obj.(*proxyv1.TrafiksBackend)
 		backend.Status.Conditions = conditions
-
-		if err := r.Status().Update(ctx, backend); err != nil {
-			if apierrors.IsConflict(err) && i < maxRetries-1 {
-				time.Sleep(time.Duration(i+1) * 50 * time.Millisecond)
-				continue
-			}
-			return err
-		}
-
-		return nil
-	}
-
-	return fmt.Errorf("failed to update status after %d retries", maxRetries)
+	})
 }
 
 // SetupWithManager sets up the controller with the Manager.

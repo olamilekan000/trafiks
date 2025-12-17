@@ -1,27 +1,4 @@
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: trafiks-backend-credentials
-  namespace: trafiks
-type: Opaque
-stringData:
-  baseURL: "http://localhost:8890"
-  # apikey should be created on the trafiks dashboard
-  apiKey: "tfk_d215a10b27c56050f6ab6ee094cc4aa27b5b6291ea2e3379dfbd883bc0a2e523"
-
----
-apiVersion: proxy.trafiks.io/v1
-kind: TrafiksBackend
-metadata:
-  name: trafiks-backend-config
-  namespace: trafiks
-spec:
-  secretRef:
-    name: trafiks-backend-credentials
-    namespace: trafiks
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -73,9 +50,7 @@ metadata:
   name: nginx-ingress
   namespace: trafiks
   annotations:
-    trafiks.io/proxy-url: "nginx.traffiked.cloud"
-    trafiks.io/project-name: "nginx-project"
-    trafiks.io/scheme: "http"
+    trafiks.io/proxy-url: "nginx.traffiked.cloud" # Must match TrafiksProxy.spec.proxyURL
 spec:
   rules:
     - host: nginx.traffiked.cloud
@@ -85,9 +60,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: nginx-service
+                name: trafiks-trafiks-charts-backend
                 port:
-                  number: 80
+                  number: 8889
   # tls:
   #   - hosts:
   #       - nginx.traffiked.cloud
@@ -100,8 +75,32 @@ metadata:
   name: nginx-proxy
   namespace: trafiks
 spec:
+  backendRef:
+    name: trafiks-backend-config
+    namespace: trafiks # Optional, defaults to TrafiksProxy namespace
   proxyURL: "nginx.traffiked.cloud"
   projectName: "nginx-project"
   kubernetes:
     namespace: "trafiks"
     serviceName: "nginx-service"
+    servicePortName: "http"  # Optional: port name or number (e.g., "http", "8080"). If not specified, uses "http" or first port.
+  cache:
+    enabled: true
+    ttl: 300 # 5 minutes
+  httpsRedirect: false
+  headers:
+    add:
+      X-Forwarded-Proto: "https"
+      X-Real-IP: "$remote_addr"
+    remove:
+      - X-Forwarded-For
+  queryParams:
+    remove:
+      - debug
+  # tlsCertResolver: "letsencrypt"
+  # Or for manual TLS:
+  # tlsCertResolver: "manual"
+  # tls:
+  #   certificateSecretRef:
+  #     name: nginx-tls-cert
+  #     namespace: trafiks

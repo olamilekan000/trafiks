@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,8 +93,8 @@ func (k *KubernetesSource) Get(ctx context.Context, proxyURL string) (*models.Se
 	if k8sConfig.ServiceName == "" {
 		return nil, fmt.Errorf("kubernetes service name is required")
 	}
-	if k8sConfig.ServicePort == "" {
-		return nil, fmt.Errorf("kubernetes service port is required")
+	if k8sConfig.ServicePortName == "" {
+		return nil, fmt.Errorf("kubernetes service port name is required")
 	}
 
 	targetURL, err := k.resolveServiceEndpoint(ctx, k8sConfig)
@@ -120,9 +119,9 @@ func (k *KubernetesSource) resolveServiceEndpoint(ctx context.Context, config *m
 		return "", fmt.Errorf("failed to get service %s/%s: %w", config.Namespace, config.ServiceName, err)
 	}
 
-	port, err := k.resolvePort(svc, config.ServicePort)
+	port, err := k.resolvePort(svc, config.ServicePortName)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve port %s: %w", config.ServicePort, err)
+		return "", fmt.Errorf("failed to resolve port %s: %w", config.ServicePortName, err)
 	}
 
 	targetURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d",
@@ -131,23 +130,14 @@ func (k *KubernetesSource) resolveServiceEndpoint(ctx context.Context, config *m
 	return targetURL, nil
 }
 
-func (k *KubernetesSource) resolvePort(svc *corev1.Service, portSpec string) (int32, error) {
-	if portNum, err := strconv.ParseInt(portSpec, 10, 32); err == nil {
-		for _, port := range svc.Spec.Ports {
-			if port.Port == int32(portNum) {
-				return int32(portNum), nil
-			}
-		}
-		return 0, fmt.Errorf("port %d not found in service %s/%s", portNum, svc.Namespace, svc.Name)
-	}
-
+func (k *KubernetesSource) resolvePort(svc *corev1.Service, portName string) (int32, error) {
 	for _, port := range svc.Spec.Ports {
-		if port.Name == portSpec {
+		if port.Name == portName {
 			return port.Port, nil
 		}
 	}
 
-	return 0, fmt.Errorf("port %s not found in service %s/%s", portSpec, svc.Namespace, svc.Name)
+	return 0, fmt.Errorf("port name %s not found in service %s/%s", portName, svc.Namespace, svc.Name)
 }
 
 // loadKubeConfig attempts to load Kubernetes configuration in the following order:
