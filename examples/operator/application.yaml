@@ -63,10 +63,6 @@ spec:
                 name: trafiks-trafiks-charts-backend
                 port:
                   number: 8889
-  # tls:
-  #   - hosts:
-  #       - nginx.traffiked.cloud
-  #     secretName: nginx-tls-secret
 
 ---
 apiVersion: proxy.trafiks.io/v1
@@ -83,7 +79,7 @@ spec:
   kubernetes:
     namespace: "trafiks"
     serviceName: "nginx-service"
-    servicePortName: "http"  # Optional: port name or number (e.g., "http", "8080"). If not specified, uses "http" or first port.
+    servicePortName: "http" # Optional: port name or number (e.g., "http", "8080"). If not specified, uses "http" or first port.
   cache:
     enabled: true
     ttl: 300 # 5 minutes
@@ -97,10 +93,3 @@ spec:
   queryParams:
     remove:
       - debug
-  # tlsCertResolver: "letsencrypt"
-  # Or for manual TLS:
-  # tlsCertResolver: "manual"
-  # tls:
-  #   certificateSecretRef:
-  #     name: nginx-tls-cert
-  #     namespace: trafiks

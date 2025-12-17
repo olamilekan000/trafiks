@@ -5,9 +5,11 @@ metadata:
   namespace: trafiks
 type: Opaque
 stringData:
-  baseURL: "http://trafikscloud.cloud"
+  # baseURL: "http://trafikscloud.cloud"
   # apikey should be created on the trafiks dashboard
-  apiKey: "tfk_9f070121407b51ebf3ff7be439b5ecdd375acd27e8d7386e8a257a1b1301d5c0"
+  # apiKey: "tfk_9f070121407b51ebf3ff7be439b5ecdd375acd27e8d7386e8a257a1b1301d5c0"
+  baseURL: "http://localhost:8890"
+  apiKey: "tfk_6292df2a3f9ab6744bcf7481525a9d8a9f1ee2c92db12e7ccad98428f181baa6"
 
 ---
 apiVersion: proxy.trafiks.io/v1

@@ -135,6 +135,14 @@ type TrafiksProxySpec struct {
 	// If true, redirect HTTP to HTTPS; if false, reject HTTP; if nil, default behavior
 	// +optional
 	HTTPSRedirect *bool `json:"httpsRedirect,omitempty"`
+
+	// TLSCertResolver specifies how to obtain the TLS certificate
+	// - "letsencrypt": Extract certificate from Ingress TLS spec (requires Ingress with TLS configuration)
+	// - "selfsigned": Backend will generate a self-signed certificate (default)
+	// +kubebuilder:validation:Enum=letsencrypt;selfsigned
+	// +kubebuilder:default=selfsigned
+	// +optional
+	TLSCertResolver string `json:"tlsCertResolver,omitempty"`
 }
 
 // TrafiksProxyStatus defines the observed state of TrafiksProxy.

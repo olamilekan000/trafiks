@@ -194,6 +194,7 @@ func main() {
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		APIClient: apiClient,
+		Logger:    ctrl.Log.WithName("controller").WithName("TrafiksProxy"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "TrafiksProxy")
 		os.Exit(1)

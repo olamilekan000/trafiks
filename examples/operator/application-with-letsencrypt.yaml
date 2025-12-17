@@ -1,0 +1,119 @@
+---
+# Example application with Let's Encrypt TLS via cert-manager
+# Prerequisites:
+# 1. cert-manager installed in cluster
+# 2. ClusterIssuer created (see cert-manager-setup.yaml)
+# 3. Domain DNS pointing to your ingress controller
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-app
+  namespace: trafiks
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-app
+  template:
+    metadata:
+      labels:
+        app: nginx-app
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: trafiks
+spec:
+  selector:
+    app: nginx-app
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: https
+
+---
+# Ingress with cert-manager annotations for automatic certificate provisioning
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  namespace: trafiks
+  annotations:
+    # Required: Trafiks operator uses this to discover the Ingress
+    trafiks.io/proxy-url: "nginx.traffiked.cloud" # Must match TrafiksProxy.spec.proxyURL
+
+    # cert-manager annotations for automatic Let's Encrypt certificate
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: nginx.traffiked.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trafiks-trafiks-charts-backend
+                port:
+                  name: https
+  # TLS configuration - cert-manager will automatically create the secret
+  tls:
+    - hosts:
+        - nginx.traffiked.cloud
+      secretName: nginx-tls-secret
+
+---
+# TrafiksProxy configured to use Let's Encrypt certificate from Ingress
+apiVersion: proxy.trafiks.io/v1
+kind: TrafiksProxy
+metadata:
+  name: nginx-proxy
+  namespace: trafiks
+spec:
+  backendRef:
+    name: trafiks-backend-config
+    namespace: trafiks
+  proxyURL: "nginx.traffiked.cloud" # Must match Ingress host and annotation
+  projectName: "nginx-project"
+  scheme: "https" # Enable HTTPS
+  kubernetes:
+    namespace: "trafiks"
+    serviceName: "nginx-service"
+    servicePortName: "https"
+  tlsCertResolver: "letsencrypt"
+  cache:
+    enabled: true
+    ttl: 300
+  httpsRedirect: true
+  headers:
+    add:
+      X-Forwarded-Proto: "https"
+      X-Real-IP: "$remote_addr"
+    remove:
+      - X-Forwarded-For
+  queryParams:
+    remove:
+      - debug
