@@ -467,11 +467,9 @@ export default function ServiceConfig() {
               value={source}
               onChange={(e) => {
                 setSource(e.target.value);
-                // Clear TargetBackendURL when switching away from trafiks
                 if (e.target.value !== "trafiks") {
                   setTargetBackendURL("");
                 }
-                // Clear Kubernetes config when switching away from kubernetes
                 if (e.target.value !== "kubernetes") {
                   setK8sNamespace("");
                   setK8sServiceName("");
@@ -777,6 +775,50 @@ export default function ServiceConfig() {
             <Card style={{ marginTop: "24px" }}>
               <h2 className="section-title">Kubernetes Configuration</h2>
               <div className="form-section">
+                {targetBackendURL && (
+                  <div
+                    style={{
+                      marginBottom: "24px",
+                      padding: "16px",
+                      background:
+                        "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%)",
+                      border: "2px solid rgba(59, 130, 246, 0.4)",
+                      borderRadius: "8px",
+                      maxWidth: "600px",
+                      marginTop: "16px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "rgba(59, 130, 246, 1)",
+                        marginBottom: "8px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Target Backend URL
+                    </div>
+                    <code
+                      style={{
+                        display: "block",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "rgba(59, 130, 246, 1)",
+                        fontFamily: "monospace",
+                        wordBreak: "break-all",
+                        padding: "10px 14px",
+                        backgroundColor: "rgba(15, 23, 42, 0.8)",
+                        borderRadius: "6px",
+                        border: "1px solid rgba(59, 130, 246, 0.3)",
+                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      {targetBackendURL}
+                    </code>
+                  </div>
+                )}
                 <div style={{ marginBottom: "24px" }}>
                   <Input
                     label="Namespace"

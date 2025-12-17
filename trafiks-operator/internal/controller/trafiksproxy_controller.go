@@ -30,7 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
@@ -44,6 +43,7 @@ type TrafiksProxyReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	APIClient TrafiksAPIClient
+	Logger    logr.Logger
 }
 
 // +kubebuilder:rbac:groups=proxy.trafiks.io,resources=trafiksproxies,verbs=get;list;watch;create;update;patch;delete
@@ -57,7 +57,7 @@ type TrafiksProxyReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := r.Logger
 
 	proxy := &proxyv1.TrafiksProxy{}
 	if err := r.Get(ctx, req.NamespacedName, proxy); err != nil {
@@ -111,7 +111,7 @@ func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
-	targetURL, resolvedPortName, err := r.resolveKubernetesService(ctx, &proxy.Spec.Kubernetes)
+	targetURL, resolvedPortName, err := r.resolveKubernetesService(ctx, &proxy.Spec.Kubernetes, proxy.Spec.Scheme)
 	if err != nil {
 		SetCondition(&proxy.Status.Conditions, "ServiceResolved", metav1.ConditionFalse, "ServiceNotFound",
 			fmt.Sprintf("Kubernetes service not found: %v", err), proxy.Generation)
@@ -249,7 +249,7 @@ func (r *TrafiksProxyReconciler) getTrafiksBackendCredentials(ctx context.Contex
 	return baseURL, apiKey, nil
 }
 
-func (r *TrafiksProxyReconciler) resolveKubernetesService(ctx context.Context, k8sConfig *proxyv1.KubernetesProxyConfig) (string, string, error) {
+func (r *TrafiksProxyReconciler) resolveKubernetesService(ctx context.Context, k8sConfig *proxyv1.KubernetesProxyConfig, scheme string) (string, string, error) {
 	svc := &corev1.Service{}
 	svcKey := client.ObjectKey{
 		Namespace: k8sConfig.Namespace,
@@ -265,8 +265,7 @@ func (r *TrafiksProxyReconciler) resolveKubernetesService(ctx context.Context, k
 		return "", "", err
 	}
 
-	targetURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d",
-		k8sConfig.ServiceName, k8sConfig.Namespace, port)
+	targetURL := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d", scheme, k8sConfig.ServiceName, k8sConfig.Namespace, port)
 
 	return targetURL, portName, nil
 }
@@ -293,7 +292,7 @@ func (r *TrafiksProxyReconciler) resolvePort(svc *corev1.Service, portName strin
 		}
 	}
 
-	return 0, "", fmt.Errorf("no ports with names found in service %s/%s (ServicePortName requires a port name)", svc.Namespace, svc.Name)
+	return 0, "", fmt.Errorf("no ports with names found in service %s/%s ServicePortName requires a port name", svc.Namespace, svc.Name)
 }
 
 func (r *TrafiksProxyReconciler) findOrGetProject(ctx context.Context, projectName string, proxy *proxyv1.TrafiksProxy) (string, error) {
@@ -334,7 +333,10 @@ func (r *TrafiksProxyReconciler) findOrGetProject(ctx context.Context, projectNa
 }
 
 func (r *TrafiksProxyReconciler) syncServiceToTrafiks(ctx context.Context, projectUID string, proxy *proxyv1.TrafiksProxy, targetURL string, resolvedPortName string) (string, error) {
-	serviceData := r.buildServiceRequest(proxy, targetURL, resolvedPortName)
+	serviceData, err := r.buildServiceRequest(ctx, proxy, targetURL, resolvedPortName)
+	if err != nil {
+		return "", fmt.Errorf("failed to build service request: %w", err)
+	}
 
 	if proxy.Status.ServiceUID != "" {
 		updatedService, err := r.APIClient.UpdateService(ctx, projectUID, proxy.Status.ServiceUID, serviceData)
@@ -360,7 +362,7 @@ func (r *TrafiksProxyReconciler) syncServiceToTrafiks(ctx context.Context, proje
 	return "", fmt.Errorf("created service but no UID returned")
 }
 
-func (r *TrafiksProxyReconciler) buildServiceRequest(proxy *proxyv1.TrafiksProxy, targetURL string, resolvedPortName string) map[string]interface{} {
+func (r *TrafiksProxyReconciler) buildServiceRequest(ctx context.Context, proxy *proxyv1.TrafiksProxy, targetURL string, resolvedPortName string) (map[string]interface{}, error) {
 	scheme := proxy.Spec.Scheme
 
 	serviceData := map[string]interface{}{
@@ -368,6 +370,19 @@ func (r *TrafiksProxyReconciler) buildServiceRequest(proxy *proxyv1.TrafiksProxy
 		"Scheme":           scheme,
 		"ProxyURL":         proxy.Spec.ProxyURL,
 		"TargetBackendURL": targetURL,
+	}
+
+	if scheme == "https" {
+		certPEM, keyPEM, certResolver, err := r.getTLSCertificate(ctx, proxy)
+		if err != nil {
+			r.Logger.Info(fmt.Sprintf("failed to get TLS certificate, will use self-signed: %v", err))
+		}
+
+		if certPEM != "" && keyPEM != "" {
+			serviceData["TLSCertificate"] = certPEM
+			serviceData["TLSKey"] = keyPEM
+			serviceData["TLSCertResolver"] = certResolver
+		}
 	}
 
 	if proxy.Spec.Cache != nil {
@@ -382,7 +397,6 @@ func (r *TrafiksProxyReconciler) buildServiceRequest(proxy *proxyv1.TrafiksProxy
 		"service_name": proxy.Spec.Kubernetes.ServiceName,
 	}
 
-	// Use ServicePortName from spec if specified, otherwise use the resolved port name
 	portName := proxy.Spec.Kubernetes.ServicePortName
 	if portName == "" {
 		portName = resolvedPortName
@@ -423,7 +437,7 @@ func (r *TrafiksProxyReconciler) buildServiceRequest(proxy *proxyv1.TrafiksProxy
 		serviceData["Configuration"] = config
 	}
 
-	return serviceData
+	return serviceData, nil
 }
 
 func (r *TrafiksProxyReconciler) updateStatus(ctx context.Context, nn types.NamespacedName, status proxyv1.TrafiksProxyStatus) error {
@@ -470,7 +484,7 @@ func (r *TrafiksProxyReconciler) discoverIngress(ctx context.Context, proxy *pro
 				Name:      ingress.Name,
 				Namespace: ingress.Namespace,
 			}
-			log.FromContext(ctx).Info("Discovered Ingress, tracking in status",
+			r.Logger.Info("Discovered Ingress, tracking in status",
 				"ingress", ingress.Name,
 				"proxyURL", proxy.Spec.ProxyURL)
 			return ingressValidationResult{shouldReconcile: true}
@@ -499,7 +513,7 @@ func (r *TrafiksProxyReconciler) validateTrackedIngress(ctx context.Context, pro
 			}
 		}
 
-		log.FromContext(ctx).Error(err, "unable to fetch tracked Ingress")
+		r.Logger.Error(err, "unable to fetch tracked Ingress")
 		return ingressValidationResult{shouldReconcile: true}
 	}
 
@@ -533,13 +547,108 @@ func (r *TrafiksProxyReconciler) clearMismatchCondition(proxy *proxyv1.TrafiksPr
 	proxy.Status.Conditions = filtered
 }
 
+// getTLSCertificateFromIngress extracts TLS certificate from the tracked Ingress
+// Returns certificate PEM, key PEM, and error
+func (r *TrafiksProxyReconciler) getTLSCertificateFromIngress(ctx context.Context, proxy *proxyv1.TrafiksProxy) (string, string, error) {
+	log := r.Logger
+	if proxy.Status.IngressRef == nil {
+		return "", "", fmt.Errorf("no Ingress reference found - Ingress must exist and have trafiks.io/proxy-url annotation matching proxyURL")
+	}
+
+	ingress := &networkingv1.Ingress{}
+	ingressKey := types.NamespacedName{
+		Name:      proxy.Status.IngressRef.Name,
+		Namespace: proxy.Status.IngressRef.Namespace,
+	}
+
+	if err := r.Get(ctx, ingressKey, ingress); err != nil {
+		return "", "", fmt.Errorf("failed to get Ingress %s/%s: %w", ingressKey.Namespace, ingressKey.Name, err)
+	}
+
+	for _, tls := range ingress.Spec.TLS {
+		for _, host := range tls.Hosts {
+			if host != proxy.Spec.ProxyURL {
+				continue
+			}
+
+			secretName := tls.SecretName
+			if secretName == "" {
+				return "", "", fmt.Errorf("ingress TLS entry for %s has no secretName", proxy.Spec.ProxyURL)
+			}
+
+			certPEM, keyPEM, err := r.getCertificateFromSecret(ctx, ingress.Namespace, secretName)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to get certificate from secret %s/%s: %w", ingress.Namespace, secretName, err)
+			}
+
+			log.Info("Extracted TLS certificate from Ingress",
+				"ingress", ingress.Name,
+				"secret", secretName,
+				"proxyURL", proxy.Spec.ProxyURL)
+
+			return certPEM, keyPEM, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("no TLS configuration found in Ingress for proxyURL %s", proxy.Spec.ProxyURL)
+}
+
+// getCertificateFromSecret retrieves TLS certificate and key from a Kubernetes Secret
+func (r *TrafiksProxyReconciler) getCertificateFromSecret(ctx context.Context, namespace, secretName string) (string, string, error) {
+	secret := &corev1.Secret{}
+	secretKey := types.NamespacedName{
+		Name:      secretName,
+		Namespace: namespace,
+	}
+
+	if err := r.Get(ctx, secretKey, secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			return "", "", fmt.Errorf("TLS secret %s/%s not found - cert-manager may not have created it yet", namespace, secretName)
+		}
+		return "", "", fmt.Errorf("failed to get TLS secret %s/%s: %w", namespace, secretName, err)
+	}
+
+	certBytes := secret.Data["tls.crt"]
+	keyBytes := secret.Data["tls.key"]
+
+	if len(certBytes) == 0 {
+		return "", "", fmt.Errorf("secret %s/%s missing tls.crt", namespace, secretName)
+	}
+
+	if len(keyBytes) == 0 {
+		return "", "", fmt.Errorf("secret %s/%s missing tls.key", namespace, secretName)
+	}
+
+	return string(certBytes), string(keyBytes), nil
+}
+
+// getTLSCertificate retrieves TLS certificate based on tlsCertResolver
+// Returns certificate PEM, key PEM, resolver type, and error
+func (r *TrafiksProxyReconciler) getTLSCertificate(ctx context.Context, proxy *proxyv1.TrafiksProxy) (string, string, string, error) {
+	certResolver := proxy.Spec.TLSCertResolver
+	if certResolver == "" {
+		certResolver = "selfsigned"
+	}
+
+	if certResolver == "selfsigned" {
+		return "", "", certResolver, nil
+	}
+
+	certPEM, keyPEM, err := r.getTLSCertificateFromIngress(ctx, proxy)
+	if err != nil {
+		return "", "", certResolver, fmt.Errorf("failed to get certificate from Ingress: %w", err)
+	}
+
+	return certPEM, keyPEM, certResolver, nil
+}
+
 func (r *TrafiksProxyReconciler) ingressToTrafiksProxy(ctx context.Context, obj client.Object) []reconcile.Request {
 	ingress, ok := obj.(*networkingv1.Ingress)
 	if !ok {
 		return []reconcile.Request{}
 	}
 
-	log := log.FromContext(ctx)
+	log := r.Logger
 	proxyList := &proxyv1.TrafiksProxyList{}
 	if err := r.List(ctx, proxyList); err != nil {
 		log.Error(err, "unable to list TrafiksProxy resources")
@@ -642,5 +751,81 @@ func (r *TrafiksProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&networkingv1.Ingress{},
 			handler.EnqueueRequestsFromMapFunc(r.ingressToTrafiksProxy),
 		).
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.secretToTrafiksProxy),
+		).
 		Complete(r)
+}
+
+// secretToTrafiksProxy watches TLS secrets and requeues related TrafiksProxy resources
+func (r *TrafiksProxyReconciler) secretToTrafiksProxy(ctx context.Context, obj client.Object) []reconcile.Request {
+	secret, ok := obj.(*corev1.Secret)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	if secret.Type != corev1.SecretTypeTLS {
+		return []reconcile.Request{}
+	}
+
+	log := r.Logger
+	proxyList := &proxyv1.TrafiksProxyList{}
+	if err := r.List(ctx, proxyList); err != nil {
+		log.Error(err, "unable to list TrafiksProxy resources")
+		return []reconcile.Request{}
+	}
+
+	var requests []reconcile.Request
+	for _, proxy := range proxyList.Items {
+		if proxy.Spec.Scheme != "https" {
+			continue
+		}
+
+		if proxy.Spec.TLSCertResolver != "letsencrypt" {
+			continue
+		}
+
+		if proxy.Status.IngressRef == nil {
+			continue
+		}
+
+		if proxy.Status.IngressRef.Namespace != secret.Namespace {
+			continue
+		}
+
+		ingress := &networkingv1.Ingress{}
+		ingressKey := types.NamespacedName{
+			Name:      proxy.Status.IngressRef.Name,
+			Namespace: proxy.Status.IngressRef.Namespace,
+		}
+
+		if err := r.Get(ctx, ingressKey, ingress); err != nil {
+			continue
+		}
+
+		for _, tls := range ingress.Spec.TLS {
+			if tls.SecretName != secret.Name {
+				continue
+			}
+
+			for _, host := range tls.Hosts {
+				if host == proxy.Spec.ProxyURL {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      proxy.Name,
+							Namespace: proxy.Namespace,
+						},
+					})
+					log.Info("TLS secret updated, requeuing TrafiksProxy",
+						"secret", secret.Name,
+						"trafiksProxy", proxy.Name,
+						"proxyURL", proxy.Spec.ProxyURL)
+					break
+				}
+			}
+		}
+	}
+
+	return requests
 }

@@ -30,6 +30,9 @@ type CreateServiceRequest struct {
 	CacheEnabled     bool                  `json:"CacheEnabled"`
 	CacheTTL         int                   `json:"CacheTTL"`
 	Configuration    *ServiceConfigRequest `json:"Configuration,omitempty"`
+	TLSCertificate   string                `json:"TLSCertificate,omitempty"`  // TLS certificate PEM (for letsencrypt or manual)
+	TLSKey           string                `json:"TLSKey,omitempty"`          // TLS private key PEM
+	TLSCertResolver  string                `json:"TLSCertResolver,omitempty"` // Certificate resolver type (letsencrypt, selfsigned, manual)
 }
 
 type UpdateServiceRequest struct {
@@ -40,6 +43,9 @@ type UpdateServiceRequest struct {
 	CacheEnabled     *bool                 `json:"CacheEnabled,omitempty"`
 	CacheTTL         *int                  `json:"CacheTTL,omitempty"`
 	Configuration    *ServiceConfigRequest `json:"Configuration,omitempty"`
+	TLSCertificate   string                `json:"TLSCertificate,omitempty"`  // TLS certificate PEM (for letsencrypt or manual)
+	TLSKey           string                `json:"TLSKey,omitempty"`          // TLS private key PEM
+	TLSCertResolver  string                `json:"TLSCertResolver,omitempty"` // Certificate resolver type (letsencrypt, selfsigned, manual)
 }
 
 type ServiceConfigRequest struct {

@@ -132,6 +132,16 @@ spec:
                 - http
                 - https
                 type: string
+              tlsCertResolver:
+                default: selfsigned
+                description: |-
+                  TLSCertResolver specifies how to obtain the TLS certificate
+                  - "letsencrypt": Extract certificate from Ingress TLS spec (requires Ingress with TLS configuration)
+                  - "selfsigned": Backend will generate a self-signed certificate (default)
+                enum:
+                - letsencrypt
+                - selfsigned
+                type: string
             required:
             - backendRef
             - kubernetes
