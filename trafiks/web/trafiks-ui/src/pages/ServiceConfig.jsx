@@ -157,7 +157,7 @@ export default function ServiceConfig() {
           const k8sConfig = serviceConfig.kubernetes;
           setK8sNamespace(k8sConfig.namespace || "");
           setK8sServiceName(k8sConfig.service_name || "");
-          setK8sServicePort(k8sConfig.service_port || "");
+          setK8sServicePort(k8sConfig.service_port_name || "");
         } else {
           setK8sNamespace("");
           setK8sServiceName("");
@@ -295,7 +295,6 @@ export default function ServiceConfig() {
         }
       }
 
-      // Set Kubernetes configuration if source is kubernetes
       if (source === "kubernetes") {
         if (k8sNamespace || k8sServiceName || k8sServicePort) {
           configuration.kubernetes = {};
@@ -306,7 +305,7 @@ export default function ServiceConfig() {
             configuration.kubernetes.service_name = k8sServiceName.trim();
           }
           if (k8sServicePort.trim()) {
-            configuration.kubernetes.service_port = k8sServicePort.trim();
+            configuration.kubernetes.service_port_name = k8sServicePort.trim();
           }
         }
       }

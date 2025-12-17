@@ -179,22 +179,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := (&controller.TrafiksProxyReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+	apiClient := controller.NewTrafiksAPIClient(10 * time.Second)
+
+	if err := (&controller.TrafiksBackendReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		APIClient: apiClient,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TrafiksProxy")
+		setupLog.Error(err, "unable to create controller", "controller", "TrafiksBackend")
 		os.Exit(1)
 	}
 
-	httpClient := controller.NewTrafiksHTTPClient(5 * time.Second)
-
-	if err := (&controller.TrafiksBackendReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		HTTPClient: httpClient,
+	if err := (&controller.TrafiksProxyReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		APIClient: apiClient,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TrafiksBackend")
+		setupLog.Error(err, "unable to create controller", "controller", "TrafiksProxy")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

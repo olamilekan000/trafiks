@@ -22,9 +22,9 @@ spec:
     # Name of the Kubernetes Service to proxy
     serviceName: "my-api-service"
 
-    # servicePort is not needed - operator will automatically resolve the port
-    # from the Service object. If the Service has multiple ports, the operator
-    # will use the first port or a port named "http" if available.
+    # Optional: Port name only (e.g., "http", "https")
+    # If not specified, operator will use a port named "http" or the first available port
+    # servicePortName: "http"
 
     # Optional: Service selector (for advanced use cases)
     # selector:
