@@ -309,25 +309,54 @@ Configuration is stored in `$HOME/.config/trafiks/config.json`. See `trafiks/con
 
 ```json
 {
-  "server_port": "8889",
-  "tls_port": "8443",
-  "app_base_url": "http://localhost:8889",
-  "environment": "local",
+  // Server configuration
+  "server_port": "8889",              // HTTP server port
+  "tls_port": "8443",                 // HTTPS/TLS server port
+  "app_base_url": "http://localhost:8889",  // Base URL for the application (used for webhooks, redirects)
+  "environment": "local",              // Environment name (local, staging, production)
+  
+  // Database configuration
   "database": {
-    "host": "localhost",
-    "port": 5432,
-    "user": "admin",
-    "password": "password",
-    "name": "trafiks",
-    "ssl_mode": "disable"
+    "host": "localhost",               // PostgreSQL host
+    "port": 5432,                      // PostgreSQL port
+    "user": "admin",                    // Database username
+    "password": "password",             // Database password
+    "name": "trafiks",                 // Database name
+    "ssl_mode": "disable"              // SSL mode (disable, require, verify-ca, verify-full)
   },
+  
+  // Redis configuration
   "redis": {
-    "host": "localhost:6379"
+    "host": "localhost:6379",          // Redis host and port
+    "username": "",                     // Redis username
+    "password": "",                     // Redis password
+    "db": 0                             // Redis database number
   },
+  
+  // Dashboard configuration
   "dashboard": {
-    "enabled": true
+    "enabled": true                     // Enable/disable the web dashboard
+  },
+  
+  // Proxy configuration (HTTP server and client settings)
+  "proxy": {
+    // Server configuration (for incoming requests)
+    "server": {
+      "shutdown_timeout": "10s",        // Graceful shutdown timeout
+      "read_timeout": "10s",             // Maximum duration for reading the entire request
+      "write_timeout": "10s",            // Maximum duration before timing out writes of the response
+      "idle_timeout": "120s"             // Maximum amount of time to wait for the next request
+    },
+    // Transport configuration (HTTP client settings for backend requests)
+    "transport": {
+      "max_idle_connections": 100,      // Maximum idle connections across all backends
+      "max_idle_connections_per_host": 20,  // Maximum idle connections per backend host
+      "idle_connection_timeout": "90s",     // How long to keep idle connections
+      "dial_timeout": "5s",             // Timeout for establishing TCP connections
+      "request_timeout": "30s"          // Total timeout for HTTP requests
+    }
+    }
   }
-}
 ```
 
 ## Service Sources

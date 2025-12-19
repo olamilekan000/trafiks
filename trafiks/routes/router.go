@@ -110,12 +110,39 @@ func NewRouter(logger pkg.LoggerClient) Router {
 	}
 }
 
-// RunTLS starts the HTTPS server with TLS configuration
-func (r *Router) RunTLS(addr string, tlsConfig *tls.Config) error {
-	server := &http.Server{
-		Addr:      addr,
-		Handler:   r.Engine,
-		TLSConfig: tlsConfig,
+func (r *Router) CreateServer(addr string) *http.Server {
+	conf := cfg.GetConf()
+	serverConfig := conf.Proxy.Server
+
+	return &http.Server{
+		Addr:         addr,
+		Handler:      r.Engine,
+		ReadTimeout:  serverConfig.ReadTimeout,
+		WriteTimeout: serverConfig.WriteTimeout,
+		IdleTimeout:  serverConfig.IdleTimeout,
 	}
+}
+
+func (r *Router) CreateTLSServer(addr string, tlsConfig *tls.Config) *http.Server {
+	conf := cfg.GetConf()
+	serverConfig := conf.Proxy.Server
+
+	return &http.Server{
+		Addr:         addr,
+		Handler:      r.Engine,
+		TLSConfig:    tlsConfig,
+		ReadTimeout:  serverConfig.ReadTimeout,
+		WriteTimeout: serverConfig.WriteTimeout,
+		IdleTimeout:  serverConfig.IdleTimeout,
+	}
+}
+
+func (r *Router) Run(addr string) error {
+	server := r.CreateServer(addr)
+	return server.ListenAndServe()
+}
+
+func (r *Router) RunTLS(addr string, tlsConfig *tls.Config) error {
+	server := r.CreateTLSServer(addr, tlsConfig)
 	return server.ListenAndServeTLS("", "") // Empty strings because we use TLSConfig.GetCertificate
 }

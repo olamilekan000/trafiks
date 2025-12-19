@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/trafiks/trafiks/api/repository"
+	"github.com/trafiks/trafiks/cfg"
 	"github.com/trafiks/trafiks/models"
 	"github.com/trafiks/trafiks/pkg"
 	"github.com/trafiks/trafiks/pkg/cache"
@@ -141,6 +143,21 @@ func NewProxyService(
 	sourceManager *source.ServiceSourceManager,
 	webhookRepo repository.WebhookRepoClient,
 ) *ProxyService {
+	conf := cfg.GetConf()
+	proxyConfig := conf.Proxy.Transport
+
+	transport := &http.Transport{
+		MaxIdleConns:        proxyConfig.MaxIdleConns,
+		MaxIdleConnsPerHost: proxyConfig.MaxIdleConnsPerHost,
+		IdleConnTimeout:     proxyConfig.IdleConnTimeout,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := &net.Dialer{
+				Timeout: proxyConfig.DialTimeout,
+			}
+			return dialer.DialContext(ctx, network, addr)
+		},
+	}
+
 	return &ProxyService{
 		logger:         logger,
 		serviceRepo:    serviceRepo,
@@ -153,7 +170,8 @@ func NewProxyService(
 		webhookService: webhookService,
 		sourceManager:  sourceManager,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   proxyConfig.RequestTimeout,
+			Transport: transport,
 		},
 		webhookRepo: webhookRepo,
 	}
@@ -584,18 +602,39 @@ func extractProxyURL(req *http.Request) string {
 	return host
 }
 
+var hopByHopHeaders = []string{
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Authenticate",
+	"Proxy-Authorization",
+	"Te",
+	"Trailers",
+	"Transfer-Encoding",
+	"Upgrade",
+}
+
+func removeHopByHopHeaders(header http.Header) {
+	if connValue := header.Get("Connection"); connValue != "" {
+		for _, part := range strings.Split(connValue, ",") {
+			if headerName := strings.TrimSpace(part); headerName != "" {
+				header.Del(headerName)
+			}
+		}
+	}
+
+	for _, headerName := range hopByHopHeaders {
+		header.Del(headerName)
+	}
+}
+
 func applyHeaderModifications(req *http.Request, originalReq *http.Request, config *models.ServiceConfig) {
 	for key, values := range originalReq.Header {
-		lowerKey := strings.ToLower(key)
-		if lowerKey == "host" ||
-			lowerKey == "connection" ||
-			lowerKey == "keep-alive" ||
-			lowerKey == "transfer-encoding" ||
-			lowerKey == "upgrade" {
-			continue
-		}
 		req.Header[key] = values
 	}
+
+	removeHopByHopHeaders(req.Header)
+
+	req.Header.Del("Host")
 
 	if len(config.Headers.Remove) > 0 {
 		for _, headerToRemove := range config.Headers.Remove {
@@ -627,17 +666,12 @@ func removeQueryParams(targetURL string, paramsToRemove []string) string {
 
 func copyHeaders(dest, source http.Header) {
 	for key, values := range source {
-		lowerKey := strings.ToLower(key)
-		if lowerKey == "connection" ||
-			lowerKey == "keep-alive" ||
-			lowerKey == "transfer-encoding" ||
-			lowerKey == "upgrade" {
-			continue
-		}
 		for _, value := range values {
 			dest.Add(key, value)
 		}
 	}
+
+	removeHopByHopHeaders(dest)
 }
 
 // logRequest logs a request using the provided RequestLogData

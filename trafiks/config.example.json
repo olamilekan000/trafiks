@@ -35,19 +35,19 @@
   "docker": {
     "socket_path": ""
   },
-  "mailer": {
-    "key": "your-resend-api-key"
-  },
-  "paystack": {
-    "base_url": "https://api.paystack.co",
-    "secret": "your-paystack-secret-key"
-  },
   "proxy": {
-    "upstream_url": "https://eu.getconvoy.cloud",
-    "path_prefix": "/ingest",
-    "timeout": 30,
-    "cache_enabled": false,
-    "cache_ttl": 300,
-    "cacheable_methods": ["GET"]
+    "server": {
+      "shutdown_timeout": "10s",
+      "read_timeout": "10s",
+      "write_timeout": "10s",
+      "idle_timeout": "120s"
+    },
+    "transport": {
+      "max_idle_connections": 100,
+      "max_idle_connections_per_host": 20,
+      "idle_connection_timeout": "90s",
+      "dial_timeout": "5s",
+      "request_timeout": "30s"
+    }
   }
 }
