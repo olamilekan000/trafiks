@@ -42,7 +42,7 @@ Trafiks can be installed in three ways: as a binary, using Docker, or on Kuberne
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:olamilekan000/trafiks.git
    cd trafiks
    ```
 
@@ -171,7 +171,7 @@ The Trafiks operator manages TrafiksProxy and TrafiksBackend custom resources, a
 1. **Install the operator:**
    ```bash
    cd trafiks-operator
-   make deploy
+   make deploy IMG=olamilekan001/trafiks-operator:v0.0.4
    ```
 
 2. **Create a Secret with backend credentials:**
