@@ -37,13 +37,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const trafiksIngressClassName = "trafiks"
+const (
+	trafiksIngressClassName = "trafiks"
+)
 
 // IngressReconciler reconciles Ingress resources and handles TLS termination
 type IngressReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
 	Logger       logr.Logger
+	HTTPPort     string                            // HTTP server port (default: "80")
+	HTTPSPort    string                            // HTTPS server port (default: "443")
 	tlsConfigs   map[string]*tls.Config            // host -> TLS config
 	ingressHosts map[types.NamespacedName][]string // ingress -> hosts for cleanup
 	tlsMu        sync.RWMutex
@@ -194,12 +198,12 @@ func (r *IngressReconciler) StartHTTPServer(ctx context.Context) error {
 	mux.HandleFunc("/", r.handleRequest)
 
 	r.httpServer = &http.Server{
-		Addr:    ":80",
+		Addr:    ":" + r.HTTPPort,
 		Handler: mux,
 	}
 
 	r.httpsServer = &http.Server{
-		Addr:    ":443",
+		Addr:    ":" + r.HTTPSPort,
 		Handler: mux,
 		TLSConfig: &tls.Config{
 			GetCertificate: func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -213,14 +217,14 @@ func (r *IngressReconciler) StartHTTPServer(ctx context.Context) error {
 	}
 
 	go func() {
-		r.Logger.Info("Starting HTTP server on :80")
+		r.Logger.Info("Starting HTTP server", "port", r.HTTPPort)
 		if err := r.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			r.Logger.Error(fmt.Errorf("HTTP server error: %v", err), "")
 		}
 	}()
 
 	go func() {
-		r.Logger.Info("Starting HTTPS server on :443")
+		r.Logger.Info("Starting HTTPS server", "port", r.HTTPSPort)
 		if err := r.httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 			r.Logger.Error(fmt.Errorf("HTTPS server error: %v", err), "")
 		}

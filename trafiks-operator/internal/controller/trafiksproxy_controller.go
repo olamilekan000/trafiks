@@ -100,9 +100,9 @@ func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	err := r.getConfiguredAPIClient(ctx, proxy)
 	if err != nil {
-		SetCondition(&proxy.Status.Conditions, "BackendReachable", metav1.ConditionFalse, "BackendNotFound",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeBackendReachable, metav1.ConditionFalse, "BackendNotFound",
 			fmt.Sprintf("TrafiksBackend not found or not ready: %v", err), proxy.Generation)
-		SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionFalse, "BackendNotFound",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "BackendNotFound",
 			"Cannot sync service: TrafiksBackend not available", proxy.Generation)
 		if err := r.updateStatus(ctx, req.NamespacedName, proxy.Status); err != nil {
 			log.Error(err, "unable to update TrafiksProxy status")
@@ -113,10 +113,10 @@ func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	targetURL, resolvedPortName, err := r.resolveKubernetesService(ctx, &proxy.Spec.Kubernetes, proxy.Spec.Scheme)
 	if err != nil {
-		SetCondition(&proxy.Status.Conditions, "ServiceResolved", metav1.ConditionFalse, "ServiceNotFound",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeServiceResolved, metav1.ConditionFalse, "ServiceNotFound",
 			fmt.Sprintf("Kubernetes service not found: %v", err), proxy.Generation)
 
-		SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionFalse, "ServiceNotFound",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "ServiceNotFound",
 			"Cannot resolve Kubernetes service endpoint", proxy.Generation)
 
 		if err := r.updateStatus(ctx, req.NamespacedName, proxy.Status); err != nil {
@@ -126,14 +126,14 @@ func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
-	SetCondition(&proxy.Status.Conditions, "ServiceResolved", metav1.ConditionTrue, "ServiceResolved",
+	SetCondition(&proxy.Status.Conditions, ConditionTypeServiceResolved, metav1.ConditionTrue, "ServiceResolved",
 		fmt.Sprintf("Resolved Kubernetes service endpoint: %s", targetURL), proxy.Generation)
 
 	projectName := proxy.Spec.ProjectName
 
 	projectUID, err := r.findOrGetProject(ctx, projectName, proxy)
 	if err != nil {
-		SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionFalse, "ProjectError",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "ProjectError",
 			fmt.Sprintf("Failed to get project: %v", err), proxy.Generation)
 		if err := r.updateStatus(ctx, req.NamespacedName, proxy.Status); err != nil {
 			log.Error(err, "unable to update TrafiksProxy status")
@@ -144,9 +144,9 @@ func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	serviceUID, err := r.syncServiceToTrafiks(ctx, projectUID, proxy, targetURL, resolvedPortName)
 	if err != nil {
-		SetCondition(&proxy.Status.Conditions, "Synced", metav1.ConditionFalse, "SyncFailed",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeSynced, metav1.ConditionFalse, "SyncFailed",
 			fmt.Sprintf("Failed to sync service: %v", err), proxy.Generation)
-		SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionFalse, "SyncFailed",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "SyncFailed",
 			"Service sync failed", proxy.Generation)
 		if err := r.updateStatus(ctx, req.NamespacedName, proxy.Status); err != nil {
 			log.Error(err, "unable to update TrafiksProxy status")
@@ -161,9 +161,9 @@ func (r *TrafiksProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	now := metav1.Now()
 	proxy.Status.LastSyncTime = &now
 
-	SetCondition(&proxy.Status.Conditions, "Synced", metav1.ConditionTrue, "Synced",
+	SetCondition(&proxy.Status.Conditions, ConditionTypeSynced, metav1.ConditionTrue, "Synced",
 		"Service successfully synced to Trafiks backend", proxy.Generation)
-	SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionTrue, "Ready",
+	SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionTrue, "Ready",
 		"TrafiksProxy is ready and synced", proxy.Generation)
 
 	if err := r.updateStatus(ctx, req.NamespacedName, proxy.Status); err != nil {
@@ -186,7 +186,7 @@ func (r *TrafiksProxyReconciler) getConfiguredAPIClient(ctx context.Context, pro
 		return nil
 	}
 
-	r.APIClient = r.APIClient.SetBaseURL(baseURL).SetAPIKey(apiKey)
+	r.APIClient.SetAPIConfig(baseURL, apiKey)
 
 	return nil
 }
@@ -202,7 +202,7 @@ func (r *TrafiksProxyReconciler) getTrafiksBackendCredentials(ctx context.Contex
 		return "", "", fmt.Errorf("failed to get TrafiksBackend %s/%s: %w", namespace, name, err)
 	}
 
-	readyCondition := findCondition(backend.Status.Conditions, "Ready")
+	readyCondition := findCondition(backend.Status.Conditions, ConditionTypeReady)
 	if readyCondition == nil || readyCondition.Status != metav1.ConditionTrue {
 		return "", "", fmt.Errorf("TrafiksBackend %s is not ready", backend.Name)
 	}
@@ -505,7 +505,7 @@ func (r *TrafiksProxyReconciler) validateTrackedIngress(ctx context.Context, pro
 	if err := r.Get(ctx, ingressKey, ingress); err != nil {
 		if apierrors.IsNotFound(err) {
 			proxy.Status.IngressRef = nil
-			SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionFalse, "IngressNotFound",
+			SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "IngressNotFound",
 				fmt.Sprintf("Tracked Ingress %s/%s not found", ingressKey.Namespace, ingressKey.Name), proxy.Generation)
 			return ingressValidationResult{
 				shouldReconcile: false,
@@ -523,7 +523,7 @@ func (r *TrafiksProxyReconciler) validateTrackedIngress(ctx context.Context, pro
 	}
 
 	if annotationProxyURL != proxy.Spec.ProxyURL {
-		SetCondition(&proxy.Status.Conditions, "Ready", metav1.ConditionFalse, "ProxyURLMismatch",
+		SetCondition(&proxy.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "ProxyURLMismatch",
 			fmt.Sprintf("Ingress annotation (%s) does not match TrafiksProxy.spec.proxyURL %s. Please update spec.proxyURL to match",
 				annotationProxyURL, proxy.Spec.ProxyURL), proxy.Generation)
 		return ingressValidationResult{

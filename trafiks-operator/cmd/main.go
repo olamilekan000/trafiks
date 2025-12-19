@@ -200,10 +200,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	httpPort := os.Getenv("TRAFIKS_HTTP_PORT")
+	if httpPort == "" {
+		httpPort = "80"
+	}
+	httpsPort := os.Getenv("TRAFIKS_HTTPS_PORT")
+	if httpsPort == "" {
+		httpsPort = "443"
+	}
+
 	if err := (&controller.IngressReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Logger: ctrl.Log.WithName("controller").WithName("Ingress"),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		Logger:    ctrl.Log.WithName("controller").WithName("Ingress"),
+		HTTPPort:  httpPort,
+		HTTPSPort: httpsPort,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Ingress")
 		os.Exit(1)

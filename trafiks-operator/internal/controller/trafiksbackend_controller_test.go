@@ -18,67 +18,288 @@ package controller
 
 import (
 	"context"
+	"testing"
+	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/matryer/is"
+	"go.uber.org/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	proxyv1 "github.com/trafiks/operator/api/v1"
+	"github.com/trafiks/operator/internal/test/mocks"
 )
 
-var _ = Describe("TrafiksBackend Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+func TestTrafiksBackendReconcile_NotFound(t *testing.T) {
+	is := is.New(t)
 
-		ctx := context.Background()
+	r := &TrafiksBackendReconciler{
+		Client: k8sClient,
+		Scheme: k8sClient.Scheme(),
+	}
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		trafiksbackend := &proxyv1.TrafiksBackend{}
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "non-existent",
+			Namespace: "default",
+		},
+	}
 
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind TrafiksBackend")
-			err := k8sClient.Get(ctx, typeNamespacedName, trafiksbackend)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &proxyv1.TrafiksBackend{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					// TODO(user): Specify other spec details if needed.
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
-		})
+	result, err := r.Reconcile(context.Background(), req)
+	is.NoErr(err)
+	is.Equal(result.RequeueAfter, time.Duration(0))
+}
 
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &proxyv1.TrafiksBackend{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+func TestTrafiksBackendReconcile_SecretNotFound(t *testing.T) {
+	is := is.New(t)
 
-			By("Cleanup the specific resource instance TrafiksBackend")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &TrafiksBackendReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
+	ns := "default"
+	backend := &proxyv1.TrafiksBackend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-backend",
+			Namespace: ns,
+		},
+		Spec: proxyv1.TrafiksBackendSpec{
+			SecretRef: proxyv1.SecretReference{
+				Name:      "non-existent-secret",
+				Namespace: ns,
+			},
+		},
+	}
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
-		})
-	})
-})
+	is.NoErr(k8sClient.Create(context.Background(), backend))
+	defer k8sClient.Delete(context.Background(), backend)
+
+	r := &TrafiksBackendReconciler{
+		Client: k8sClient,
+		Scheme: k8sClient.Scheme(),
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      backend.Name,
+			Namespace: backend.Namespace,
+		},
+	}
+
+	result, err := r.Reconcile(context.Background(), req)
+	is.NoErr(err)
+	is.Equal(result.RequeueAfter, 30*time.Second)
+
+	updated := &proxyv1.TrafiksBackend{}
+	is.NoErr(k8sClient.Get(context.Background(), req.NamespacedName, updated))
+
+	readyCond := findCondition(updated.Status.Conditions, ConditionTypeReady)
+	is.True(readyCond != nil)
+	is.Equal(readyCond.Status, metav1.ConditionFalse)
+	is.Equal(readyCond.Reason, "SecretNotFound")
+
+	availableCond := findCondition(updated.Status.Conditions, ConditionTypeAvailable)
+	is.True(availableCond != nil)
+	is.Equal(availableCond.Status, metav1.ConditionUnknown)
+	is.Equal(availableCond.Reason, "SecretNotFound")
+}
+
+func TestTrafiksBackendReconcile_MissingSecretKeys(t *testing.T) {
+	is := is.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ns := "default"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: ns,
+		},
+		Data: map[string][]byte{},
+	}
+
+	backend := &proxyv1.TrafiksBackend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-backend",
+			Namespace: ns,
+		},
+		Spec: proxyv1.TrafiksBackendSpec{
+			SecretRef: proxyv1.SecretReference{
+				Name:      secret.Name,
+				Namespace: ns,
+			},
+		},
+	}
+
+	is.NoErr(k8sClient.Create(context.Background(), secret))
+	defer k8sClient.Delete(context.Background(), secret)
+
+	is.NoErr(k8sClient.Create(context.Background(), backend))
+	defer k8sClient.Delete(context.Background(), backend)
+
+	r := &TrafiksBackendReconciler{
+		Client: k8sClient,
+		Scheme: k8sClient.Scheme(),
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      backend.Name,
+			Namespace: backend.Namespace,
+		},
+	}
+
+	result, err := r.Reconcile(context.Background(), req)
+	is.NoErr(err)
+	is.Equal(result.RequeueAfter, 30*time.Second)
+
+	updated := &proxyv1.TrafiksBackend{}
+	is.NoErr(k8sClient.Get(context.Background(), req.NamespacedName, updated))
+
+	readyCond := findCondition(updated.Status.Conditions, ConditionTypeReady)
+	is.True(readyCond != nil)
+	is.Equal(readyCond.Status, metav1.ConditionFalse)
+	is.Equal(readyCond.Reason, "MissingSecretKeys")
+
+	availableCond := findCondition(updated.Status.Conditions, ConditionTypeAvailable)
+	is.True(availableCond != nil)
+	is.Equal(availableCond.Status, metav1.ConditionUnknown)
+	is.Equal(availableCond.Reason, "MissingSecretKeys")
+}
+
+func TestTrafiksBackendReconcile_EmptySecretValues(t *testing.T) {
+	is := is.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ns := "default"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret-empty",
+			Namespace: ns,
+		},
+		Data: map[string][]byte{
+			"baseURL": []byte(""),
+			"apiKey":  []byte(""),
+		},
+	}
+
+	backend := &proxyv1.TrafiksBackend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-backend-empty",
+			Namespace: ns,
+		},
+		Spec: proxyv1.TrafiksBackendSpec{
+			SecretRef: proxyv1.SecretReference{
+				Name:      secret.Name,
+				Namespace: ns,
+			},
+		},
+	}
+
+	is.NoErr(k8sClient.Create(context.Background(), secret))
+	defer k8sClient.Delete(context.Background(), secret)
+
+	is.NoErr(k8sClient.Create(context.Background(), backend))
+	defer k8sClient.Delete(context.Background(), backend)
+
+	r := &TrafiksBackendReconciler{
+		Client: k8sClient,
+		Scheme: k8sClient.Scheme(),
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      backend.Name,
+			Namespace: backend.Namespace,
+		},
+	}
+
+	result, err := r.Reconcile(context.Background(), req)
+	is.NoErr(err)
+	is.Equal(result.RequeueAfter, 30*time.Second)
+
+	updated := &proxyv1.TrafiksBackend{}
+	is.NoErr(k8sClient.Get(context.Background(), req.NamespacedName, updated))
+
+	readyCond := findCondition(updated.Status.Conditions, ConditionTypeReady)
+	is.True(readyCond != nil)
+	is.Equal(readyCond.Status, metav1.ConditionFalse)
+	is.Equal(readyCond.Reason, "EmptySecretValues")
+
+	availableCond := findCondition(updated.Status.Conditions, ConditionTypeAvailable)
+	is.True(availableCond != nil)
+	is.Equal(availableCond.Status, metav1.ConditionUnknown)
+	is.Equal(availableCond.Reason, "EmptySecretValues")
+}
+
+func TestTrafiksBackendReconcile_Success(t *testing.T) {
+	is := is.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockAPIClient := mocks.NewMockTrafiksAPIClient(ctrl)
+
+	ns := "default"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret-success",
+			Namespace: ns,
+		},
+		Data: map[string][]byte{
+			"baseURL": []byte("http://localhost:8080"),
+			"apiKey":  []byte("test-api-key"),
+		},
+	}
+
+	backend := &proxyv1.TrafiksBackend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-backend-success",
+			Namespace: ns,
+		},
+		Spec: proxyv1.TrafiksBackendSpec{
+			SecretRef: proxyv1.SecretReference{
+				Name:      secret.Name,
+				Namespace: ns,
+			},
+		},
+	}
+
+	is.NoErr(k8sClient.Create(context.Background(), secret))
+	defer k8sClient.Delete(context.Background(), secret)
+
+	is.NoErr(k8sClient.Create(context.Background(), backend))
+	defer k8sClient.Delete(context.Background(), backend)
+
+	mockAPIClient.EXPECT().SetAPIConfig("http://localhost:8080", "test-api-key").AnyTimes()
+	mockAPIClient.EXPECT().CheckHealth(gomock.Any()).Return(200, nil).AnyTimes()
+	mockAPIClient.EXPECT().CheckAuthentication(gomock.Any()).Return(200, nil).AnyTimes()
+
+	r := &TrafiksBackendReconciler{
+		Client:    k8sClient,
+		Scheme:    k8sClient.Scheme(),
+		APIClient: mockAPIClient,
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      backend.Name,
+			Namespace: backend.Namespace,
+		},
+	}
+
+	result, err := r.Reconcile(context.Background(), req)
+	is.NoErr(err)
+	is.Equal(result.RequeueAfter, 1*time.Minute) // Controller requeues every minute to check backend health
+
+	updated := &proxyv1.TrafiksBackend{}
+	is.NoErr(k8sClient.Get(context.Background(), req.NamespacedName, updated))
+
+	readyCond := findCondition(updated.Status.Conditions, ConditionTypeReady)
+	is.True(readyCond != nil)
+	is.Equal(readyCond.Status, metav1.ConditionTrue)
+	is.Equal(readyCond.Reason, "SecretValidAndBackendReachable")
+
+	availableCond := findCondition(updated.Status.Conditions, ConditionTypeAvailable)
+	is.True(availableCond != nil)
+	is.Equal(availableCond.Status, metav1.ConditionTrue)
+	is.Equal(availableCond.Reason, "BackendReachable")
+}

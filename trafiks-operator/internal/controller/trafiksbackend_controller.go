@@ -88,9 +88,9 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if err := r.Get(ctx, secretKey, secret); err != nil {
 		if apierrors.IsNotFound(err) {
-			SetCondition(&backend.Status.Conditions, "Ready", metav1.ConditionFalse, "SecretNotFound",
+			SetCondition(&backend.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "SecretNotFound",
 				fmt.Sprintf("Secret %s not found in namespace %s", secretRef.Name, secretNamespace), backend.Generation)
-			SetCondition(&backend.Status.Conditions, "Available", metav1.ConditionUnknown, "SecretNotFound",
+			SetCondition(&backend.Status.Conditions, ConditionTypeAvailable, metav1.ConditionUnknown, "SecretNotFound",
 				"Cannot check backend availability: secret not found", backend.Generation)
 			if err := r.updateStatus(ctx, req.NamespacedName, backend.Status.Conditions, backend.Generation); err != nil {
 				log.Error(err, "unable to update TrafiksBackend status")
@@ -114,9 +114,9 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if !apiKeyExists {
 			missingKeys = append(missingKeys, apiKeyKey)
 		}
-		SetCondition(&backend.Status.Conditions, "Ready", metav1.ConditionFalse, "MissingSecretKeys",
+		SetCondition(&backend.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "MissingSecretKeys",
 			fmt.Sprintf("Secret missing required keys: %v", missingKeys), backend.Generation)
-		SetCondition(&backend.Status.Conditions, "Available", metav1.ConditionUnknown, "MissingSecretKeys",
+		SetCondition(&backend.Status.Conditions, ConditionTypeAvailable, metav1.ConditionUnknown, "MissingSecretKeys",
 			"Cannot check backend availability: secret missing required keys", backend.Generation)
 		if err := r.updateStatus(ctx, req.NamespacedName, backend.Status.Conditions, backend.Generation); err != nil {
 			log.Error(err, "unable to update TrafiksBackend status")
@@ -129,9 +129,9 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	apiKey := string(apiKeyBytes)
 
 	if baseURL == "" || apiKey == "" {
-		SetCondition(&backend.Status.Conditions, "Ready", metav1.ConditionFalse, "EmptySecretValues",
+		SetCondition(&backend.Status.Conditions, ConditionTypeReady, metav1.ConditionFalse, "EmptySecretValues",
 			"Secret contains empty values for baseURL or apiKey", backend.Generation)
-		SetCondition(&backend.Status.Conditions, "Available", metav1.ConditionUnknown, "EmptySecretValues",
+		SetCondition(&backend.Status.Conditions, ConditionTypeAvailable, metav1.ConditionUnknown, "EmptySecretValues",
 			"Cannot check backend availability: secret contains empty values", backend.Generation)
 		if err := r.updateStatus(ctx, req.NamespacedName, backend.Status.Conditions, backend.Generation); err != nil {
 			log.Error(err, "unable to update TrafiksBackend status")
@@ -143,8 +143,8 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	available, availableReason, availableMessage := r.checkBackendReachable(ctx, baseURL, apiKey)
 	ready, readyReason, readyMessage := r.checkAuthentication(ctx, baseURL, apiKey)
 
-	SetCondition(&backend.Status.Conditions, "Available", available, availableReason, availableMessage, backend.Generation)
-	SetCondition(&backend.Status.Conditions, "Ready", ready, readyReason, readyMessage, backend.Generation)
+	SetCondition(&backend.Status.Conditions, ConditionTypeAvailable, available, availableReason, availableMessage, backend.Generation)
+	SetCondition(&backend.Status.Conditions, ConditionTypeReady, ready, readyReason, readyMessage, backend.Generation)
 
 	if err := r.updateStatus(ctx, req.NamespacedName, backend.Status.Conditions, backend.Generation); err != nil {
 		log.Error(err, "unable to update TrafiksBackend status")
@@ -155,7 +155,8 @@ func (r *TrafiksBackendReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *TrafiksBackendReconciler) checkBackendReachable(ctx context.Context, baseURL, apiKey string) (metav1.ConditionStatus, string, string) {
-	statusCode, err := r.APIClient.SetBaseURL(baseURL).SetAPIKey(apiKey).CheckHealth(ctx)
+	r.APIClient.SetAPIConfig(baseURL, apiKey)
+	statusCode, err := r.APIClient.CheckHealth(ctx)
 	if err != nil {
 		return metav1.ConditionFalse, "BackendUnreachable",
 			fmt.Sprintf("Cannot reach Trafiks backend: %v", err)
@@ -170,7 +171,8 @@ func (r *TrafiksBackendReconciler) checkBackendReachable(ctx context.Context, ba
 }
 
 func (r *TrafiksBackendReconciler) checkAuthentication(ctx context.Context, baseURL, apiKey string) (metav1.ConditionStatus, string, string) {
-	statusCode, err := r.APIClient.SetBaseURL(baseURL).SetAPIKey(apiKey).CheckAuthentication(ctx)
+	r.APIClient.SetAPIConfig(baseURL, apiKey)
+	statusCode, err := r.APIClient.CheckAuthentication(ctx)
 	if err != nil {
 		return metav1.ConditionFalse, "BackendUnreachable",
 			fmt.Sprintf("Cannot reach Trafiks backend for authentication: %v", err)
