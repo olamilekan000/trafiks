@@ -36,7 +36,6 @@ func NewProxy(
 	sourceManager *source.ServiceSourceManager,
 	webhookRepo repository.WebhookRepoClient,
 ) Proxy {
-	cacheAdapter := cache.AsCache(redisClient)
 	return Proxy{
 		logger:         logger,
 		handler:        handler,
@@ -44,7 +43,7 @@ func NewProxy(
 		serviceRepo:    serviceRepo,
 		projectRepo:    projectRepo,
 		requestLogRepo: requestLogRepo,
-		cacheAdapter:   cacheAdapter,
+		cacheAdapter:   redisClient,
 		streamHub:      streamHub,
 		webhookService: webhookService,
 		sourceManager:  sourceManager,

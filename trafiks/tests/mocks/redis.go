@@ -19,6 +19,87 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockCache is a mock of Cache interface.
+type MockCache struct {
+	ctrl     *gomock.Controller
+	recorder *MockCacheMockRecorder
+	isgomock struct{}
+}
+
+// MockCacheMockRecorder is the mock recorder for MockCache.
+type MockCacheMockRecorder struct {
+	mock *MockCache
+}
+
+// NewMockCache creates a new mock instance.
+func NewMockCache(ctrl *gomock.Controller) *MockCache {
+	mock := &MockCache{ctrl: ctrl}
+	mock.recorder = &MockCacheMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCache) EXPECT() *MockCacheMockRecorder {
+	return m.recorder
+}
+
+// Clear mocks base method.
+func (m *MockCache) Clear(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Clear", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockCacheMockRecorder) Clear(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockCache)(nil).Clear), ctx)
+}
+
+// Delete mocks base method.
+func (m *MockCache) Delete(ctx context.Context, key string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, key)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockCacheMockRecorder) Delete(ctx, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCache)(nil).Delete), ctx, key)
+}
+
+// Get mocks base method.
+func (m *MockCache) Get(ctx context.Context, key string) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", ctx, key)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockCacheMockRecorder) Get(ctx, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCache)(nil).Get), ctx, key)
+}
+
+// Set mocks base method.
+func (m *MockCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Set", ctx, key, value, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Set indicates an expected call of Set.
+func (mr *MockCacheMockRecorder) Set(ctx, key, value, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCache)(nil).Set), ctx, key, value, ttl)
+}
+
 // MockRedisClient is a mock of RedisClient interface.
 type MockRedisClient struct {
 	ctrl     *gomock.Controller
@@ -43,18 +124,18 @@ func (m *MockRedisClient) EXPECT() *MockRedisClientMockRecorder {
 	return m.recorder
 }
 
-// ClearCache mocks base method.
-func (m *MockRedisClient) ClearCache(ctx context.Context) error {
+// Clear mocks base method.
+func (m *MockRedisClient) Clear(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClearCache", ctx)
+	ret := m.ctrl.Call(m, "Clear", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ClearCache indicates an expected call of ClearCache.
-func (mr *MockRedisClientMockRecorder) ClearCache(ctx any) *gomock.Call {
+// Clear indicates an expected call of Clear.
+func (mr *MockRedisClientMockRecorder) Clear(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearCache", reflect.TypeOf((*MockRedisClient)(nil).ClearCache), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockRedisClient)(nil).Clear), ctx)
 }
 
 // Close mocks base method.
@@ -99,33 +180,19 @@ func (mr *MockRedisClientMockRecorder) Delete(ctx, key any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRedisClient)(nil).Delete), ctx, key)
 }
 
-// DeleteCache mocks base method.
-func (m *MockRedisClient) DeleteCache(ctx context.Context, key string) error {
+// Get mocks base method.
+func (m *MockRedisClient) Get(ctx context.Context, key string) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteCache", ctx, key)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteCache indicates an expected call of DeleteCache.
-func (mr *MockRedisClientMockRecorder) DeleteCache(ctx, key any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCache", reflect.TypeOf((*MockRedisClient)(nil).DeleteCache), ctx, key)
-}
-
-// GetCache mocks base method.
-func (m *MockRedisClient) GetCache(ctx context.Context, key string) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCache", ctx, key)
+	ret := m.ctrl.Call(m, "Get", ctx, key)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetCache indicates an expected call of GetCache.
-func (mr *MockRedisClientMockRecorder) GetCache(ctx, key any) *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockRedisClientMockRecorder) Get(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCache", reflect.TypeOf((*MockRedisClient)(nil).GetCache), ctx, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockRedisClient)(nil).Get), ctx, key)
 }
 
 // GetClient mocks base method.
@@ -157,16 +224,16 @@ func (mr *MockRedisClientMockRecorder) Ping(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockRedisClient)(nil).Ping), ctx)
 }
 
-// SetCache mocks base method.
-func (m *MockRedisClient) SetCache(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+// Set mocks base method.
+func (m *MockRedisClient) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetCache", ctx, key, value, ttl)
+	ret := m.ctrl.Call(m, "Set", ctx, key, value, ttl)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetCache indicates an expected call of SetCache.
-func (mr *MockRedisClientMockRecorder) SetCache(ctx, key, value, ttl any) *gomock.Call {
+// Set indicates an expected call of Set.
+func (mr *MockRedisClientMockRecorder) Set(ctx, key, value, ttl any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCache", reflect.TypeOf((*MockRedisClient)(nil).SetCache), ctx, key, value, ttl)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockRedisClient)(nil).Set), ctx, key, value, ttl)
 }

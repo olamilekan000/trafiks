@@ -70,8 +70,7 @@ func NewDatabase(logger pkg.LoggerClient, configEnv *cfg.Config) PostgresDB {
 
 	// Seed bootstrap admin user
 	if err := seeders.SeedAdminUser(dbClient); err != nil {
-		dbLogger.Errorf("error seeding admin user: %v", err)
-		panic(err)
+		dbLogger.Warnf("error seeding admin user (may already exist): %v", err)
 	}
 
 	return PostgresDB{
