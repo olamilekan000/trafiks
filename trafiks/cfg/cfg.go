@@ -3,6 +3,7 @@ package cfg
 import (
 	"flag"
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
@@ -26,6 +27,7 @@ type Config struct {
 	Bootstrap   BootstrapCfg   `mapstructure:"bootstrap"`
 	Docker      DockerConf     `mapstructure:"docker"`
 	Kubernetes  KubernetesConf `mapstructure:"kubernetes"`
+	Proxy       ProxyConf      `mapstructure:"proxy"`
 }
 
 type DashboardCfg struct {
@@ -56,6 +58,26 @@ type DockerConf struct {
 
 type KubernetesConf struct {
 	KubeconfigPath string `mapstructure:"kubeconfig_path"` // Empty = in-cluster config
+}
+
+type ProxyConf struct {
+	Server    ProxyServerConf    `mapstructure:"server"`
+	Transport ProxyTransportConf `mapstructure:"transport"`
+}
+
+type ProxyServerConf struct {
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+	ReadTimeout     time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout     time.Duration `mapstructure:"idle_timeout"`
+}
+
+type ProxyTransportConf struct {
+	MaxIdleConns        int           `mapstructure:"max_idle_connections"`
+	MaxIdleConnsPerHost int           `mapstructure:"max_idle_connections_per_host"`
+	IdleConnTimeout     time.Duration `mapstructure:"idle_connection_timeout"`
+	DialTimeout         time.Duration `mapstructure:"dial_timeout"`
+	RequestTimeout      time.Duration `mapstructure:"request_timeout"`
 }
 
 type database struct {
@@ -182,6 +204,37 @@ func setDefaults(conf *Config) {
 	if conf.Docker.SocketPath == "" {
 		// conf.Docker.SocketPath = "unix:///Users/olalekanodukoya/.colima/k8s/docker.sock"
 		conf.Docker.SocketPath = "unix:///var/run/docker.sock"
+	}
+
+	// Proxy server defaults
+	if conf.Proxy.Server.ShutdownTimeout == 0 {
+		conf.Proxy.Server.ShutdownTimeout = 10 * time.Second
+	}
+	if conf.Proxy.Server.ReadTimeout == 0 {
+		conf.Proxy.Server.ReadTimeout = 10 * time.Second
+	}
+	if conf.Proxy.Server.WriteTimeout == 0 {
+		conf.Proxy.Server.WriteTimeout = 10 * time.Second
+	}
+	if conf.Proxy.Server.IdleTimeout == 0 {
+		conf.Proxy.Server.IdleTimeout = 120 * time.Second
+	}
+
+	// Proxy transport defaults
+	if conf.Proxy.Transport.MaxIdleConns == 0 {
+		conf.Proxy.Transport.MaxIdleConns = 100
+	}
+	if conf.Proxy.Transport.MaxIdleConnsPerHost == 0 {
+		conf.Proxy.Transport.MaxIdleConnsPerHost = 20
+	}
+	if conf.Proxy.Transport.IdleConnTimeout == 0 {
+		conf.Proxy.Transport.IdleConnTimeout = 90 * time.Second
+	}
+	if conf.Proxy.Transport.DialTimeout == 0 {
+		conf.Proxy.Transport.DialTimeout = 5 * time.Second
+	}
+	if conf.Proxy.Transport.RequestTimeout == 0 {
+		conf.Proxy.Transport.RequestTimeout = 30 * time.Second
 	}
 }
 

@@ -1,8 +1,11 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/trafiks/trafiks/api/dto"
 	"github.com/trafiks/trafiks/api/repository"
@@ -229,6 +232,12 @@ func (s *Service) GetServiceByProject(c *gin.Context) (interface{}, *pkg.RestErr
 
 	service, err := s.serviceRepo.Find(ctx, &models.Service{ProjectID: project.ID})
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return gin.H{
+				"project_id": project.UID,
+			}, nil
+		}
+
 		return nil, s.restErr.NotFound("service not found for this project")
 	}
 
