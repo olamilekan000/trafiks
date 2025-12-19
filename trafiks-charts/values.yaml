@@ -97,7 +97,7 @@ ingress:
         - path: /
           pathType: Prefix
   tls:
-    - secretName: trafiks-tls
+    - secretName: trafiks-tls-secret
       hosts:
         - trafikscloud.cloud
 
