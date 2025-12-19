@@ -17,6 +17,7 @@ import {
 import toast from "react-hot-toast";
 import { requestLogService } from "../services/requestLogService";
 import { projectService } from "../services/projectService";
+import { copyToClipboard } from "../utils/clipboard";
 import {
   Card,
   Button,
@@ -147,28 +148,22 @@ export default function RequestLogs() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
-  // Generate cURL command from request log
   const generateCurlCommand = (log) => {
     if (!log) return "";
 
-    // Use proxy URL if available, otherwise fall back to target URL
     const baseUrl = log.proxy_url;
     const method = log.method;
     let curl = `curl -X ${method}`;
 
-    // Add headers
     if (log.request_headers && typeof log.request_headers === "object") {
       Object.entries(log.request_headers).forEach(([key, value]) => {
-        // Escape quotes in header values
         const escapedValue = String(value).replace(/"/g, '\\"');
         curl += ` \\\n  -H "${key}: ${escapedValue}"`;
       });
     }
 
-    // Add body for POST, PUT, PATCH
     if (["POST", "PUT", "PATCH"].includes(method) && log.request_body) {
       const body = log.request_body.trim();
-      // Check if it's JSON
       if (body.startsWith("{") || body.startsWith("[")) {
         curl += ` \\\n  -d '${body.replace(/'/g, "'\\''")}'`;
       } else {
@@ -176,10 +171,8 @@ export default function RequestLogs() {
       }
     }
 
-    // Build full URL with path and query string
     let fullUrl = baseUrl;
     if (log.path && log.path !== "/") {
-      // Ensure base URL doesn't end with / and path doesn't start with /
       if (fullUrl.endsWith("/")) {
         fullUrl = fullUrl.slice(0, -1);
       }
@@ -204,19 +197,17 @@ export default function RequestLogs() {
     return curl;
   };
 
-  // Copy cURL to clipboard
-  const handleExportCurl = () => {
+  const handleExportCurl = async () => {
     if (!selectedLog) return;
 
-    const curlCommand = generateCurlCommand(selectedLog);
-    navigator.clipboard.writeText(curlCommand).then(
-      () => {
-        toast.success("cURL command copied to clipboard!");
-      },
-      () => {
-        toast.error("Failed to copy to clipboard");
-      }
-    );
+    try {
+      const curlCommand = generateCurlCommand(selectedLog);
+      await copyToClipboard(curlCommand);
+      toast.success("cURL command copied to clipboard!");
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   // Replay request

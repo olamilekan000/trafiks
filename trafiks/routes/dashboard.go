@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -42,17 +43,15 @@ func (d *Dashboard) Setup() {
 
 	distFS, err := fs.Sub(DashboardFiles, "dist")
 	if err != nil {
-		d.logger.Warnf("Failed to load embedded dashboard files: %v. Dashboard will not be available. Please run 'make build-ui' and rebuild the Go binary.", err)
+		d.logger.Warnf("failed to load embedded dashboard files: %v.", err)
 		return
 	}
 
-	d.logger.Info("Serving embedded dashboard from binary")
-
-	d.handler.GET("/dashboard", func(c *gin.Context) {
+	d.handler.GET("/dashboard", d.domainCheckMiddleware, func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/dashboard/")
 	})
 
-	d.handler.GET("/dashboard/*path", func(c *gin.Context) {
+	d.handler.GET("/dashboard/*path", d.domainCheckMiddleware, func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		file, err := distFS.Open(path)
 		if err != nil {
@@ -77,4 +76,63 @@ func (d *Dashboard) Setup() {
 
 		c.Data(http.StatusOK, contentType, data)
 	})
+}
+
+func (d *Dashboard) domainCheckMiddleware(c *gin.Context) {
+	config := cfg.GetConf()
+
+	allowedDomain := extractDomain(config.AppBaseURL)
+	if allowedDomain == "" {
+		c.Next()
+		return
+	}
+
+	requestHost := c.Request.Host
+	if strings.Contains(requestHost, ":") {
+		requestHost = strings.Split(requestHost, ":")[0]
+	}
+
+	allowedDomain = normalizeDomain(allowedDomain)
+	requestHost = normalizeDomain(requestHost)
+
+	if requestHost != allowedDomain {
+		d.logger.Warnf("Dashboard access denied: request host '%s' does not match app_base_url domain '%s'", c.Request.Host, allowedDomain)
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "you do not have permission to access this route.",
+			"data":    nil,
+		})
+		c.Abort()
+		return
+	}
+
+	c.Next()
+}
+
+func extractDomain(urlString string) string {
+	urlString = strings.TrimSpace(urlString)
+	if urlString == "" {
+		return ""
+	}
+
+	if !strings.HasPrefix(urlString, "http://") && !strings.HasPrefix(urlString, "https://") {
+		return urlString
+	}
+
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		urlString = strings.TrimPrefix(strings.TrimPrefix(urlString, "http://"), "https://")
+		if idx := strings.Index(urlString, "/"); idx != -1 {
+			return urlString[:idx]
+		}
+		return urlString
+	}
+
+	return parsedURL.Hostname()
+}
+
+func normalizeDomain(domain string) string {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	domain = strings.TrimPrefix(domain, "www.")
+	return domain
 }

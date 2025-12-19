@@ -1,36 +1,6 @@
 # Helm chart deployment Makefile for Trafiks
-
-HELM_REPO_TRAEFIK = traefik
-HELM_REPO_URL_TRAEFIK = https://traefik.github.io/charts
-TRAEFIK_RELEASE_NAME = traefik
 TRAFIK_RELEASE_NAME = trafiks
 NAMESPACE ?= default
-
-# Install Traefik ingress controller
-install-traefik:
-	@echo "Adding Traefik Helm repository..."
-	@helm repo add $(HELM_REPO_TRAEFIK) $(HELM_REPO_URL_TRAEFIK)
-	@echo "Updating Helm repositories..."
-	@helm repo update
-	@echo "Installing Traefik..."
-	@helm install $(TRAEFIK_RELEASE_NAME) $(HELM_REPO_TRAEFIK)/traefik
-
-# Upgrade Traefik
-upgrade-traefik:
-	@echo "Updating Helm repositories..."
-	@helm repo update
-	@echo "Upgrading Traefik..."
-	@helm upgrade $(TRAEFIK_RELEASE_NAME) $(HELM_REPO_TRAEFIK)/traefik
-
-# Uninstall Traefik
-uninstall-traefik:
-	@echo "Uninstalling Traefik..."
-	@helm uninstall $(TRAEFIK_RELEASE_NAME)
-
-# Install Trafiks application
-install:
-	@echo "Installing Trafiks..."
-	@helm install $(TRAFIK_RELEASE_NAME) . --namespace $(NAMESPACE) --create-namespace
 
 # Upgrade Trafiks application
 upgrade:
@@ -50,10 +20,6 @@ install-all: install-traefik install
 upgrade-all: upgrade-traefik upgrade
 	@echo "Traefik and Trafiks upgraded successfully!"
 
-# Show Traefik status
-status-traefik:
-	@echo "Traefik status:"
-	@helm status $(TRAEFIK_RELEASE_NAME) || echo "Traefik not installed"
 
 # Show Trafiks status
 status:
@@ -77,4 +43,4 @@ template:
 values:
 	@helm show values . || cat values.yaml
 
-.PHONY: install-traefik upgrade-traefik uninstall-traefik install upgrade uninstall install-all upgrade-all status-traefik status status-all lint template values
+.PHONY: install upgrade uninstall install-all upgrade-all status status-all lint template values

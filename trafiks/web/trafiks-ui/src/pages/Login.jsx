@@ -82,8 +82,8 @@ export default function Login() {
             and caching for us, letting us focus on our core business."
           </p>
           <div className="testimonial-author">
-            <div className="author-name">John Doe</div>
-            <div className="author-title">CTO at Example Corp</div>
+            <div className="author-name">Rocky Oyeniran</div>
+            <div className="author-title">CTO at Emergex AI</div>
           </div>
         </div>
       </div>

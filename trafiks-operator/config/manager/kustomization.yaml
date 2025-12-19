@@ -1,2 +1,9 @@
 resources:
 - manager.yaml
+- ingress_service.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: olamilekan001/trafiks-operator
+  newTag: v0.0.4

@@ -62,6 +62,7 @@ func (m *TLSManager) RemoveCertificate(domain string) {
 
 func (m *TLSManager) GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	domain := clientHello.ServerName
+	m.logger.Infof("TLS: ClientHelloInfo: %+v", clientHello.ServerName)
 	if domain == "" {
 		m.mu.RLock()
 		defer m.mu.RUnlock()

@@ -65,9 +65,6 @@ export default function Header() {
         </div>
       </div>
       <div className="header-right">
-        <button className="header-link">
-          <span>Go to docs</span>
-        </button>
         {user && (
           <div className="header-user-container" ref={dropdownRef}>
             <div

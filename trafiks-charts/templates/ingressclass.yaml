@@ -1,0 +1,21 @@
+{{- if .Values.backend.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: trafiks
+  labels:
+    {{- include "trafiks-charts.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingress-class
+  {{- with .Values.ingress.ingressClassAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+    ingressclass.kubernetes.io/is-default-class: "true"
+  {{- end }}
+spec:
+  controller: trafiks.io/ingress-controller
+  {{- if .Values.ingress.ingressClassParameters }}
+  parameters:
+    {{- toYaml .Values.ingress.ingressClassParameters | nindent 4 }}
+  {{- end }}
+{{- end }}
+
