@@ -1,0 +1,38 @@
+{
+  "log_level": "debug",
+  "log_output": "stdout",
+  "server_port": "8889",
+  "tls_port": "8443",
+  "app_base_url": "http://localhost:8889",
+  "environment": "local",
+  "dashboard": {
+    "enabled": true
+  },
+  "bootstrap": {
+    "user": {
+      "email": "admin@trafiks.local",
+      "password": "admin123",
+      "first_name": "admin",
+      "last_name": "user"
+    }
+  },
+  "database": {
+    "host": "postgres_trafiks",
+    "port": 5432,
+    "user": "admin",
+    "password": "password",
+    "name": "trafiks",
+    "ssl_mode": "disable",
+    "log_enabled": false
+  },
+  "jwt_secret": "2pPLTGtIGEDhvIDPJBYp/c8gzV5bRacq9QE7pDpBEdM26AmONv0+6crsf+suz/Nn",
+  "redis": {
+    "host": "redis_trafiks:6379",
+    "username": "",
+    "password": "",
+    "db": 0
+  },
+  "docker": {
+    "socket_path": "unix:///var/run/docker.sock"
+  }
+}

@@ -1,10 +1,3 @@
----
-# Example application with Let's Encrypt TLS via cert-manager
-# Prerequisites:
-# 1. cert-manager installed in cluster
-# 2. ClusterIssuer created (see cert-manager-setup.yaml)
-# 3. Domain DNS pointing to your ingress controller
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -59,9 +52,6 @@ metadata:
   annotations:
     # Required: Trafiks operator uses this to discover the Ingress
     trafiks.io/proxy-url: "nginx.traffiked.cloud" # Must match TrafiksProxy.spec.proxyURL
-
-    # cert-manager annotations for automatic Let's Encrypt certificate
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: trafiks
   rules:
@@ -76,14 +66,14 @@ spec:
                 port:
                   name: http
                   # number: 8889
-  # TLS configuration - cert-manager will automatically create the secret
+  # TLS configuration - This references the secret name with the certificate and key
   tls:
     - hosts:
         - nginx.traffiked.cloud
       secretName: nginx-tls-secret
 
 ---
-# TrafiksProxy configured to use Let's Encrypt certificate from Ingress
+# TrafiksProxy configured to use selfsigned certificate
 apiVersion: proxy.trafiks.io/v1
 kind: TrafiksProxy
 metadata:
