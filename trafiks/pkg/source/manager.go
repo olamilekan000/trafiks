@@ -46,7 +46,6 @@ func (m *ServiceSourceManager) Get(ctx context.Context, proxyURL string) (*model
 	return m.current.Get(ctx, proxyURL)
 }
 
-// GetSource returns the currently selected source (or nil if none selected)
 func (m *ServiceSourceManager) GetSource() ServiceSource {
 	return m.current
 }

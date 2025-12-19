@@ -1,3 +1,5 @@
+//go:generate mockgen -source=proxy_request_log.go -destination=../../tests/mocks/proxy_request_log.go -package=mocks
+
 package repository
 
 import (

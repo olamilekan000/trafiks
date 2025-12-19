@@ -1,3 +1,5 @@
+//go:generate mockgen -source=redis.go -destination=../../tests/mocks/redis.go -package=mocks
+
 package cache
 
 import (

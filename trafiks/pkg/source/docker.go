@@ -1,3 +1,5 @@
+//go:generate mockgen -source=docker.go -destination=../../tests/mocks/docker.go -package=mocks
+
 package source
 
 import (

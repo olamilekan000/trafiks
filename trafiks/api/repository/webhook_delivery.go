@@ -1,3 +1,5 @@
+//go:generate mockgen -source=webhook_delivery.go -destination=../../tests/mocks/webhook_delivery.go -package=mocks
+
 package repository
 
 import (

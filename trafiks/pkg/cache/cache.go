@@ -1,3 +1,5 @@
+//go:generate mockgen -source=cache.go -destination=../../tests/mocks/cache.go -package=mocks
+
 package cache
 
 import (

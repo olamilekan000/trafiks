@@ -1,3 +1,5 @@
+//go:generate mockgen -source=kubernetes.go -destination=../../tests/mocks/kubernetes.go -package=mocks
+
 package source
 
 import (
