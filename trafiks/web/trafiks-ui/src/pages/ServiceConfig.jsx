@@ -42,7 +42,6 @@ export default function ServiceConfig() {
 
   // Docker configuration state
   const [dockerLabels, setDockerLabels] = useState([{ key: "", value: "" }]);
-  const [dockerNetwork, setDockerNetwork] = useState("");
   const [dockerPort, setDockerPort] = useState("");
 
   // Kubernetes configuration state
@@ -157,11 +156,9 @@ export default function ServiceConfig() {
           } else {
             setDockerLabels([{ key: "", value: "" }]);
           }
-          setDockerNetwork(dockerConfig.network || "");
           setDockerPort(dockerConfig.port || "");
         } else {
           setDockerLabels([{ key: "", value: "" }]);
-          setDockerNetwork("");
           setDockerPort("");
         }
 
@@ -294,13 +291,10 @@ export default function ServiceConfig() {
           }
         });
 
-        if (Object.keys(labelsMap).length > 0 || dockerNetwork || dockerPort) {
+        if (Object.keys(labelsMap).length > 0 || dockerPort) {
           configuration.docker = {};
           if (Object.keys(labelsMap).length > 0) {
             configuration.docker.labels = labelsMap;
-          }
-          if (dockerNetwork.trim()) {
-            configuration.docker.network = dockerNetwork.trim();
           }
           if (dockerPort.trim()) {
             configuration.docker.port = dockerPort.trim();
@@ -480,7 +474,6 @@ export default function ServiceConfig() {
                 // Clear Docker config when switching away from docker
                 if (e.target.value !== "docker") {
                   setDockerLabels([{ key: "", value: "" }]);
-                  setDockerNetwork("");
                   setDockerPort("");
                 }
               }}
@@ -749,25 +742,6 @@ export default function ServiceConfig() {
                     }}
                   >
                     The port exposed by the container (e.g., 8080, 3000)
-                  </div>
-                </div>
-                <div>
-                  <Input
-                    label="Docker Network (Optional)"
-                    value={dockerNetwork}
-                    onChange={(e) => setDockerNetwork(e.target.value)}
-                    placeholder="bridge"
-                    style={{ maxWidth: "600px" }}
-                  />
-                  <div
-                    style={{
-                      marginTop: "4px",
-                      fontSize: "12px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    Optional: Docker network name. If not specified, Trafiks
-                    will auto-detect based on the environment.
                   </div>
                 </div>
               </div>
@@ -1114,18 +1088,7 @@ export default function ServiceConfig() {
         <Button
           variant="primary"
           onClick={handleSave}
-          disabled={
-            loading ||
-            saving ||
-            source === "kubernetes" ||
-            !proxyURL ||
-            (source === "trafiks" && !targetBackendURL) ||
-            (source === "docker" &&
-              (!dockerPort ||
-                dockerLabels.every((l) => !l.key.trim() || !l.value.trim()))) ||
-            (source === "kubernetes" &&
-              (!k8sNamespace || !k8sServiceName || !k8sServicePort))
-          }
+          disabled={loading || saving || source === "kubernetes"}
           size="large"
         >
           {source === "kubernetes"

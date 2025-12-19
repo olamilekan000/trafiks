@@ -51,14 +51,12 @@ func NewProxyRequestLog(
 	sourceManager *source.ServiceSourceManager,
 	webhookRepo repository.WebhookRepoClient,
 ) ProxyRequestLogClient {
-	cacheAdapter := cache.AsCache(redisClient)
-
 	proxyService := NewProxyService(
 		logger,
 		serviceRepo,
 		projectRepo,
 		requestLogRepo,
-		cacheAdapter,
+		redisClient,
 		config.AppBaseURL,
 		config.TLSPort,
 		streamHub,

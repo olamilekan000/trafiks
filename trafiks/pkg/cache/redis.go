@@ -10,24 +10,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisConf struct {
-	Host     string `json:"host"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Db       int    `json:"db"`
+type Cache interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	Delete(ctx context.Context, key string) error
+	Clear(ctx context.Context) error
 }
 
 type RedisClient interface {
+	Cache
 	Ping(ctx context.Context) (string, error)
 	Connect(ctx context.Context, conf RedisConf) error
-	Delete(ctx context.Context, key string) error
 	Close() error
-	// Cache interface methods for proxy caching
-	GetCache(ctx context.Context, key string) ([]byte, error)
-	SetCache(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	DeleteCache(ctx context.Context, key string) error
-	ClearCache(ctx context.Context) error
-	// GetClient returns the underlying redis.Client for advanced operations
 	GetClient() *redis.Client
 }
 
@@ -62,23 +56,6 @@ func (r *redisClient) Ping(ctx context.Context) (string, error) {
 	return r.client.Ping(ctx).Result()
 }
 
-func (r *redisClient) Set(ctx context.Context, key string, value interface{}, expiration *time.Duration) error {
-	var exp time.Duration
-	if expiration != nil {
-		exp = *expiration
-	}
-
-	return r.client.Set(ctx, key, value, exp).Err()
-}
-
-func (r *redisClient) Get(ctx context.Context, key string) (string, error) {
-	return r.client.Get(ctx, key).Result()
-}
-
-func (r *redisClient) Delete(ctx context.Context, key string) error {
-	return r.client.Del(ctx, key).Err()
-}
-
 func (r *redisClient) Close() error {
 	if r.client != nil {
 		return r.client.Close()
@@ -87,59 +64,80 @@ func (r *redisClient) Close() error {
 	return nil
 }
 
-// Cache interface implementation methods
-// These methods implement the Cache interface for proxy caching
-// They work with []byte for HTTP response caching
-
-func (r *redisClient) GetCache(ctx context.Context, key string) ([]byte, error) {
-	val, err := r.Get(ctx, key)
+func (r *redisClient) Get(ctx context.Context, key string) ([]byte, error) {
+	if r.client == nil {
+		return nil, fmt.Errorf("redis client not initialized")
+	}
+	val, err := r.client.Get(ctx, key).Result()
 	if err != nil {
 		return nil, err
 	}
 	return []byte(val), nil
 }
 
-func (r *redisClient) SetCache(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	expiration := &ttl
-	return r.Set(ctx, key, value, expiration)
+func (r *redisClient) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if r.client == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+	return r.client.Set(ctx, key, value, ttl).Err()
 }
 
-func (r *redisClient) DeleteCache(ctx context.Context, key string) error {
-	return r.Delete(ctx, key)
+func (r *redisClient) Delete(ctx context.Context, key string) error {
+	if r.client == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+	return r.client.Del(ctx, key).Err()
 }
 
-func (r *redisClient) ClearCache(ctx context.Context) error {
-	// For Redis, we'd need to implement a pattern-based delete
-	// For now, this is a no-op
+func (r *redisClient) Clear(ctx context.Context) error {
+	if r.client == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+
+	// Use SCAN to find all keys matching the cache key pattern
+	// Cache keys follow the pattern: method:path:query or method:path:query:hash
+	// Pattern "*:*:*" matches cache keys (at least 2 colons)
+	pattern := "*:*:*"
+	var cursor uint64 = 0
+
+	for {
+		keys, nextCursor, err := r.client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return fmt.Errorf("error scanning cache keys: %w", err)
+		}
+
+		// Delete found keys in batches
+		if len(keys) > 0 {
+			if err := r.client.Del(ctx, keys...).Err(); err != nil {
+				return fmt.Errorf("error deleting cache keys: %w", err)
+			}
+		}
+
+		// Continue scanning if there are more keys
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
 	return nil
-}
-
-// AsCache converts a RedisClient to Cache interface
-func AsCache(client RedisClient) Cache {
-	return &redisCacheAdapter{client: client}
-}
-
-// redisCacheAdapter adapts RedisClient to Cache interface
-type redisCacheAdapter struct {
-	client RedisClient
-}
-
-func (r *redisCacheAdapter) Get(ctx context.Context, key string) ([]byte, error) {
-	return r.client.GetCache(ctx, key)
-}
-
-func (r *redisCacheAdapter) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	return r.client.SetCache(ctx, key, value, ttl)
-}
-
-func (r *redisCacheAdapter) Delete(ctx context.Context, key string) error {
-	return r.client.DeleteCache(ctx, key)
-}
-
-func (r *redisCacheAdapter) Clear(ctx context.Context) error {
-	return r.client.ClearCache(ctx)
 }
 
 func (r *redisClient) GetClient() *redis.Client {
 	return r.client
+}
+
+// CacheKey generates a cache key from request details
+func CacheKey(method, path, query string, bodyHash string) string {
+	if bodyHash != "" {
+		return method + ":" + path + ":" + query + ":" + bodyHash
+	}
+	return method + ":" + path + ":" + query
+}
+
+type RedisConf struct {
+	Host     string `json:"host"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Db       int    `json:"db"`
 }
