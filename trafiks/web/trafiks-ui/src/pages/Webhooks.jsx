@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { webhookService } from "../services/webhookService";
+import { copyToClipboard } from "../utils/clipboard";
 import {
   Card,
   Button,
@@ -234,7 +235,7 @@ export default function Webhooks() {
 
   const handleCopyWebhookId = async (webhookId) => {
     try {
-      await navigator.clipboard.writeText(webhookId);
+      await copyToClipboard(webhookId);
       setCopiedWebhookId(webhookId);
       toast.success("Webhook ID copied to clipboard!");
       setTimeout(() => setCopiedWebhookId(null), 2000);
@@ -246,7 +247,7 @@ export default function Webhooks() {
 
   const handleCopySecret = async (text, type = "secret") => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyToClipboard(text);
       setCopiedWebhookId(type);
       toast.success(
         type === "url"

@@ -48,10 +48,6 @@ spec:
       targetPort: 80
       protocol: TCP
       name: http
-    - port: 443
-      targetPort: 443
-      protocol: TCP
-      name: https
 
 ---
 # Ingress with cert-manager annotations for automatic certificate provisioning
@@ -67,7 +63,7 @@ metadata:
     # cert-manager annotations for automatic Let's Encrypt certificate
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: traefik
+  ingressClassName: trafiks
   rules:
     - host: nginx.traffiked.cloud
       http:
@@ -78,7 +74,8 @@ spec:
               service:
                 name: trafiks-trafiks-charts-backend
                 port:
-                  name: https
+                  name: http
+                  # number: 8889
   # TLS configuration - cert-manager will automatically create the secret
   tls:
     - hosts:
@@ -102,10 +99,10 @@ spec:
   kubernetes:
     namespace: "trafiks"
     serviceName: "nginx-service"
-    servicePortName: "https"
-  tlsCertResolver: "letsencrypt"
+    servicePortName: "http"
+  tlsCertResolver: "selfsigned"
   cache:
-    enabled: true
+    enabled: false
     ttl: 300
   httpsRedirect: true
   headers:
@@ -117,3 +114,4 @@ spec:
   queryParams:
     remove:
       - debug
+      - trace

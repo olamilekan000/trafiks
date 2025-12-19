@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { apiKeyService } from "../services/apiKeyService";
+import { copyToClipboard } from "../utils/clipboard";
 import {
   Card,
   Button,
@@ -110,7 +111,7 @@ export default function APIKeys() {
 
   const handleCopyKey = async (keyValue) => {
     try {
-      await navigator.clipboard.writeText(keyValue);
+      await copyToClipboard(keyValue);
       setCopiedKeyId("new-key");
       toast.success("API key copied to clipboard!");
       setTimeout(() => setCopiedKeyId(null), 2000);
@@ -122,7 +123,7 @@ export default function APIKeys() {
 
   const handleCopyKeyId = async (keyId) => {
     try {
-      await navigator.clipboard.writeText(keyId);
+      await copyToClipboard(keyId);
       setCopiedKeyId(keyId);
       toast.success("Key ID copied to clipboard!");
       setTimeout(() => setCopiedKeyId(null), 2000);

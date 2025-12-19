@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { serviceService } from "../services/serviceService";
 import { projectService } from "../services/projectService";
+import { copyToClipboard } from "../utils/clipboard";
 import {
   Card,
   Button,
@@ -64,6 +65,18 @@ export default function ServiceConfig() {
   useEffect(() => {
     console.log("certificate", certificate);
   }, [certificate]);
+
+  const handleCopy = async () => {
+    try {
+      await copyToClipboard(`${scheme}://${proxyURL}`);
+      setCopied(true);
+      toast.success("Proxy URL copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast.error("Failed to copy URL. Please try again.");
+    }
+  };
 
   const [headersToAdd, setHeadersToAdd] = useState([{ key: "", value: "" }]);
 
@@ -431,18 +444,7 @@ export default function ServiceConfig() {
             <Button
               variant="ghost"
               size="small"
-              onClick={async () => {
-                try {
-                  const fullUrl = `${scheme}://${proxyURL}`;
-                  await navigator.clipboard.writeText(fullUrl);
-                  setCopied(true);
-                  toast.success("Proxy URL copied to clipboard!");
-                  setTimeout(() => setCopied(false), 2000);
-                } catch (err) {
-                  console.error("Failed to copy:", err);
-                  toast.error("Failed to copy URL. Please try again.");
-                }
-              }}
+              onClick={handleCopy}
               title="Copy to clipboard"
               className="proxy-url-copy-button"
             >

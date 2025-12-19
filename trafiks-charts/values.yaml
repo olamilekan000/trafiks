@@ -76,48 +76,30 @@ securityContext:
   # runAsUser: 1000
 
 service:
-  type: ClusterIP
-  port: 8889
+  type: NodePort
+  port: 80
   targetPort: 8889
   # TLS/HTTPS port configuration
-  tlsPort: 8443
+  tlsPort: 433
   tlsTargetPort: 8443
+  # NodePort values (optional - Kubernetes will auto-assign if not specified)
+  nodePort: null # Set to specific port number (30000-32767) or null for auto-assignment
+  tlsNodePort: null # Set to specific port number (30000-32767) or null for auto-assignment
 
 ingress:
-  # Enable ingress to expose the backend service
   enabled: true
-  # Traefik ingress class name
-  # Common values: "traefik", "traefik-internal", or check with: kubectl get ingressclass
-  className: "traefik"
-  # Enable automatic HTTP to HTTPS redirect (requires TLS to be enabled)
-  httpsRedirect: false
+  className: "trafiks"
   annotations:
-    # Entrypoints: web (HTTP), websecure (HTTPS)
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    # Enable TLS/HTTPS
-    # traefik.ingress.kubernetes.io/router.tls: "true"
-    # Certificate resolver for Let's Encrypt (recommended for production)
-    # Configure cert resolver in Traefik, then uncomment and set:
-    # traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
-    # traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    trafiks.ingress.kubernetes.io/proxy-url: "trafikscloud.cloud"
   hosts:
     - host: trafikscloud.cloud
       paths:
         - path: /
           pathType: Prefix
-    - host: myapi.dozzss.cloud
-      paths:
-        - path: /
-          pathType: Prefix
-  # TLS configuration (standard Kubernetes format)
-  # For automatic Let's Encrypt: Leave empty array and set certResolver in annotations
-  # For manual certificate: Provide secretName and hosts
   tls:
-    []
-    # Example for manual certificate:
-    # - secretName: trafiks-tls
-    #   hosts:
-    #     - trafikscloud.cloud
+    - secretName: trafiks-tls
+      hosts:
+        - trafikscloud.cloud
 
 # Legacy resources - use backend.resources or agent.resources instead
 resources:

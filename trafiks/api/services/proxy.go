@@ -167,9 +167,26 @@ func (p *ProxyService) GetTlsPort() string {
 	return p.tlsPort
 }
 
+func isHTTPSRequest(req *http.Request) bool {
+	if proto := req.Header.Get("X-Forwarded-Proto"); proto == "https" {
+		return true
+	}
+
+	return req.TLS != nil
+}
+
 // ProxyRequest handles a proxy request and returns the response
 func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent string) *ProxyResponse {
 	ctx := req.Context()
+
+	p.logger.Infof("=== Request Debug ===")
+	p.logger.Infof("req.TLS: %v", req.TLS != nil)
+	p.logger.Infof("X-Forwarded-Proto: %s", req.Header.Get("X-Forwarded-Proto"))
+	p.logger.Infof("X-Forwarded-For: %s", req.Header.Get("X-Forwarded-For"))
+	p.logger.Infof("X-Real-IP: %s", req.Header.Get("X-Real-IP"))
+	p.logger.Infof("X-Scheme: %s", req.Header.Get("X-Scheme"))
+	p.logger.Infof("All Headers: %+v", req.Header)
+	p.logger.Infof("===================")
 
 	startTime := time.Now()
 	response := &ProxyResponse{
@@ -250,7 +267,7 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 	}
 
 	if service.Scheme == models.SchemeHTTPS {
-		isHTTPS := req.TLS != nil
+		isHTTPS := isHTTPSRequest(req)
 		tlsPort := p.tlsPort
 
 		host := req.Host
@@ -258,6 +275,11 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 			host = host[:idx]
 		}
 		httpsURL := fmt.Sprintf("https://%s:%s%s", host, tlsPort, req.URL.RequestURI())
+		if service.Source == "kubernetes" {
+			httpsURL = fmt.Sprintf("http://%s", host)
+		}
+
+		p.logger.Infof("HTTPS URL: %s", httpsURL)
 
 		if !isHTTPS {
 			if serviceConfig.HTTPSRedirect != nil && *serviceConfig.HTTPSRedirect {
@@ -415,7 +437,7 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 		p.logger.Errorf("Error forwarding request: %v", err)
 		responseTime := time.Since(startTime).Milliseconds()
 
-		if p.webhookService != nil && service.Project.UserID != 0 {
+		if p.webhookService != nil && service.Project.UserID != 0 && webhook != nil {
 			eventType := EventUpstreamUnreachable
 			if isTimeoutError(err) {
 				eventType = EventUpstreamTimeout
@@ -477,8 +499,7 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 	response.StatusCode = resp.StatusCode
 	response.Headers = resp.Header
 
-	// Trigger webhook for failed requests
-	if resp.StatusCode >= 400 && p.webhookService != nil && service.Project.UserID != 0 {
+	if resp.StatusCode >= 400 && p.webhookService != nil && service.Project.ID != 0 && webhook != nil {
 		go p.webhookService.SendEvent(
 			webhook.ID,
 			EventRequestFailed,

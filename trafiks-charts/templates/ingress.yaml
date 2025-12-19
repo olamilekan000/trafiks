@@ -40,12 +40,6 @@ spec:
       secretName: {{ .secretName }}
       {{- end }}
       {{- end }}
-    {{- else if hasKey (index .Values.ingress.annotations) "traefik.ingress.kubernetes.io/router.tls" }}
-  tls:
-    - hosts:
-      {{- range .Values.ingress.hosts }}
-        - {{ .host | quote }}
-      {{- end }}
     {{- end }}
   {{- end }}
   rules:

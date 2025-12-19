@@ -630,10 +630,6 @@ func (r *TrafiksProxyReconciler) getTLSCertificate(ctx context.Context, proxy *p
 		certResolver = "selfsigned"
 	}
 
-	if certResolver == "selfsigned" {
-		return "", "", certResolver, nil
-	}
-
 	certPEM, keyPEM, err := r.getTLSCertificateFromIngress(ctx, proxy)
 	if err != nil {
 		return "", "", certResolver, fmt.Errorf("failed to get certificate from Ingress: %w", err)

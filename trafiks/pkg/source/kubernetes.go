@@ -97,7 +97,7 @@ func (k *KubernetesSource) Get(ctx context.Context, proxyURL string) (*models.Se
 		return nil, fmt.Errorf("kubernetes service port name is required")
 	}
 
-	targetURL, err := k.resolveServiceEndpoint(ctx, k8sConfig)
+	targetURL, err := k.resolveServiceEndpoint(ctx, k8sConfig, service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve k8s service endpoint: %w", err)
 	}
@@ -113,7 +113,7 @@ func (k *KubernetesSource) Enabled() bool {
 	return k.k8sClient != nil
 }
 
-func (k *KubernetesSource) resolveServiceEndpoint(ctx context.Context, config *models.KubernetesConfig) (string, error) {
+func (k *KubernetesSource) resolveServiceEndpoint(ctx context.Context, config *models.KubernetesConfig, service *models.Service) (string, error) {
 	svc, err := k.k8sClient.CoreV1().Services(config.Namespace).Get(ctx, config.ServiceName, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to get service %s/%s: %w", config.Namespace, config.ServiceName, err)

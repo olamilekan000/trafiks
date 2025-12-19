@@ -11,10 +11,16 @@ spec:
   ports:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort | default .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
       protocol: TCP
       name: http
     - port: {{ .Values.service.tlsPort | default 8443 }}
       targetPort: {{ .Values.service.tlsTargetPort | default 8443 }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.tlsNodePort }}
+      nodePort: {{ .Values.service.tlsNodePort }}
+      {{- end }}
       protocol: TCP
       name: https
   selector:
