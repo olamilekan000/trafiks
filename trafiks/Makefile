@@ -73,4 +73,10 @@ push-images:
 	@echo "Use ./build-and-push.sh [VERSION] [DOCKERHUB_USERNAME] to build and push images"
 	@./build-and-push.sh
 
-.PHONY: start stop startdb stopdb build-docker build clean cleandb dev dev-agent build-ui build-backend build-agent build-images push-images
+##@ Testing
+
+.PHONY: test
+test: 
+	go test ./...
+
+.PHONY: start stop startdb stopdb build-docker build clean cleandb dev dev-agent build-ui build-backend build-agent build-images push-images test

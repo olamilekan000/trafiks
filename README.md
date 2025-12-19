@@ -19,12 +19,56 @@ Trafiks is a modern API Gateway and Proxy Service built with Go and React. It pr
 
 ## Architecture
 
-Trafiks consists of two main components:
+Trafiks follows a microservices architecture with two main components that work together to provide a complete API gateway solution:
 
-- **Backend**: API server that handles proxy requests, service management, and API endpoints
-- **Agent**: Background worker that processes webhook deliveries and other async tasks
+### Backend
 
-> **Note**: The agent is optional and only required if you have configured webhooks. If no webhooks are configured, you can run Trafiks with just the backend component.
+The **Backend** is the core API server that handles:
+
+- **Proxy Requests**: Routes incoming HTTP/HTTPS requests to configured backend services with support for:
+  - Request/response caching with configurable TTL
+  - Header and query parameter manipulation
+  - TLS termination and HTTPS redirects
+  - Request logging and metrics collection
+- **Service Management**: RESTful API for managing services, projects, API keys, and webhooks
+- **Service Discovery**: Multi-source service discovery supporting:
+  - Database-backed services (Trafiks source)
+  - Docker containers via Docker API
+  - Kubernetes services via Ingress and Service resources
+- **Real-time Metrics**: Server-Sent Events (SSE) streaming for live metrics visualization
+- **Dashboard**: Embedded React dashboard for service management and monitoring
+
+### Agent
+
+The **Agent** is an optional background worker that processes asynchronous tasks:
+
+- **Webhook Delivery Processing**: Consumes webhook delivery jobs from Redis Streams and delivers them to configured webhook endpoints
+- **Retry Logic**: Handles failed webhook deliveries with automatic retry mechanisms
+- **Worker Pool**: Multiple concurrent workers for parallel webhook processing
+- **Consumer Groups**: Uses Redis Streams consumer groups to ensure reliable message delivery and prevent duplicate processing
+
+### Data Flow
+
+1. **Proxy Request Flow**:
+   - Client request → Backend → Service lookup → Cache check → Backend service → Response → Cache (if applicable) → Client
+
+2. **Webhook Delivery Flow**:
+   - Event occurs in Backend → Webhook delivery created in PostgreSQL → Delivery pushed to Redis Stream (`webhook:deliveries`)
+   - Agent workers consume from Redis Stream using consumer groups → HTTP POST to webhook URL → Status updated in database
+
+### Infrastructure Components
+
+- **PostgreSQL**: Stores services, projects, API keys, webhooks, and request logs
+- **Redis**: 
+  - **Caching**: Response caching for GET requests with TTL support
+  - **Streams**: Queue for webhook deliveries using Redis Streams with consumer groups for reliable processing
+- **Redis Streams**: Used for webhook delivery queue with:
+  - Ordered message processing
+  - Consumer groups for load distribution across multiple agent instances
+  - Automatic acknowledgment (ACK) after successful processing
+  - Pending message tracking for retry scenarios
+
+> **Note**: The agent is optional and only required if you have configured webhooks. If no webhooks are configured, you can run Trafiks with just the backend component. The backend can scale independently, and you can run multiple agent instances for high-throughput webhook processing.
 
 ## Installation
 
@@ -352,6 +396,21 @@ spec:
 **Example**: See `examples/operator/` for Kubernetes deployment examples.
 
 ## Testing
+
+### Backend Tests
+
+The Trafiks backend includes comprehensive unit tests for services, repositories, and routes. To run the tests:
+
+```bash
+cd trafiks
+make test
+```
+
+This runs all tests with coverage. The tests use standard Go testing with `gomock` for mocking dependencies. Tests cover:
+- Service layer logic (API keys, projects, proxy requests, webhooks)
+- Repository layer interactions
+- Route handlers
+- Cache and source manager functionality
 
 ### Operator Tests
 
