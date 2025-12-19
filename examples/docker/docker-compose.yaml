@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for Trafiks
+  postgres_trafiks:
+    image: postgres:latest
+    container_name: postgres_trafiks
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: trafiks
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_trafiks-data:/var/lib/postgresql
+    restart: unless-stopped
+    networks:
+      - trafiks_network
+
+  # Redis for Trafiks caching and queues
+  redis_trafiks:
+    image: redis:8
+    container_name: redis_trafiks
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_trafiks-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - trafiks_network
+
+  # Trafiks Backend
+  trafiks-backend:
+    build:
+      context: ../../trafiks
+      dockerfile: Dockerfile.backend
+    container_name: trafiks-backend
+    ports:
+      - "8889:8889"  # HTTP port
+      - "8443:8443"  # HTTPS port
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.json:/root/.config/trafiks/config.json:ro
+    networks:
+      - trafiks_network
+    depends_on:
+      - postgres_trafiks
+      - redis_trafiks
+    environment:
+      - TZ=UTC
+
+  # Trafiks Agent (optional - only needed for webhooks)
+  trafiks-agent:
+    build:
+      context: ../../trafiks
+      dockerfile: Dockerfile.agent
+    container_name: trafiks-agent
+    restart: unless-stopped
+    volumes:
+      - ./config.json:/root/.config/trafiks/config.json:ro
+    networks:
+      - trafiks_network
+    depends_on:
+      - postgres_trafiks
+      - redis_trafiks
+      - trafiks-backend
+    environment:
+      - TZ=UTC
+
+  # Example test API service (discovered via Docker source)
+  test-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test-api
+    ports:
+      - "8080"  # Exposed for testing
+    labels:
+      # These labels are used by Trafiks to discover the service
+      trafiks.service: "test-api"
+      trafiks.environment: "test"
+    networks:
+      - trafiks_network
+    restart: unless-stopped
+    depends_on:
+      - trafiks-backend
+
+volumes:
+  postgres_trafiks-data:
+  redis_trafiks-data:
+
+networks:
+  trafiks_network:
+    driver: bridge
+    name: trafiks_network
