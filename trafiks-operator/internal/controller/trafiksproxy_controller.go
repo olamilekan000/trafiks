@@ -778,10 +778,6 @@ func (r *TrafiksProxyReconciler) secretToTrafiksProxy(ctx context.Context, obj c
 			continue
 		}
 
-		if proxy.Spec.TLSCertResolver != "letsencrypt" {
-			continue
-		}
-
 		if proxy.Status.IngressRef == nil {
 			continue
 		}
