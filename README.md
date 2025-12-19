@@ -351,6 +351,31 @@ spec:
 
 **Example**: See `examples/operator/` for Kubernetes deployment examples.
 
+## Testing
+
+### Operator Tests
+
+The Trafiks operator includes comprehensive unit tests for controllers. To run the tests:
+
+1. **Setup test environment** (one-time setup):
+   ```bash
+   cd trafiks-operator
+   make setup-envtest
+   ```
+   This downloads the required Kubernetes test binaries (kubebuilder, etcd, kube-apiserver).
+
+2. **Run unit tests:**
+   ```bash
+   make test-unit
+   ```
+
+The tests use `envtest` which provides an in-memory Kubernetes API server - no real cluster is required. Tests cover:
+- TrafiksProxy reconciliation
+- TrafiksBackend reconciliation
+- Ingress controller functionality
+- TLS certificate management
+
+
 ## License
 
 This project is licensed under the MIT License.

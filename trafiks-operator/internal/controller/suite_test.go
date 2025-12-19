@@ -17,14 +17,13 @@ limitations under the License.
 package controller
 
 import (
-	"context"
+	"crypto/tls"
 	"os"
 	"path/filepath"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,38 +32,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	proxyv1 "github.com/trafiks/operator/api/v1"
-	// +kubebuilder:scaffold:imports
 )
-
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	cfg                   *rest.Config
+	k8sClient             client.Client
+	testEnv               *envtest.Environment
+	testLogger            logr.Logger
+	testIngressReconciler *IngressReconciler
 )
 
-func TestControllers(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	RunSpecs(t, "Controller Suite")
-}
-
-var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
-
-	ctx, cancel = context.WithCancel(context.TODO())
+func TestMain(m *testing.M) {
+	testLogger = zap.New(zap.UseDevMode(true))
+	logf.SetLogger(testLogger)
 
 	var err error
 	err = proxyv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		testLogger.Error(err, "Failed to add TrafiksProxy scheme")
+		os.Exit(1)
+	}
 
-	// +kubebuilder:scaffold:scheme
-
-	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
@@ -75,22 +63,38 @@ var _ = BeforeSuite(func() {
 		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
 
-	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
+	if err != nil {
+		testLogger.Error(err, "Failed to start test environment")
+		os.Exit(1)
+	}
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
-})
+	if err != nil {
+		testLogger.Error(err, "Failed to create k8s client")
+		os.Exit(1)
+	}
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	cancel()
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
-})
+	testIngressReconciler = &IngressReconciler{
+		Client:       k8sClient,
+		Scheme:       k8sClient.Scheme(),
+		Logger:       testLogger,
+		HTTPPort:     "8880",
+		HTTPSPort:    "8543",
+		tlsConfigs:   make(map[string]*tls.Config),
+		ingressHosts: make(map[types.NamespacedName][]string),
+	}
+
+	code := m.Run()
+
+	err = testEnv.Stop()
+	if err != nil {
+		testLogger.Error(err, "Failed to stop test environment")
+		os.Exit(1)
+	}
+
+	os.Exit(code)
+}
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by

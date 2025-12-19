@@ -1,3 +1,5 @@
+//go:generate mockgen -source=trafiks_api_client.go -destination=../test/mocks/trafiks_api_client.go -package=mocks
+
 package controller
 
 import (
@@ -9,8 +11,7 @@ import (
 )
 
 type TrafiksAPIClient interface {
-	SetBaseURL(baseURL string) TrafiksAPIClient
-	SetAPIKey(apiKey string) TrafiksAPIClient
+	SetAPIConfig(baseURL, apiKey string)
 
 	CheckHealth(ctx context.Context) (int, error)
 	CheckAuthentication(ctx context.Context) (int, error)
@@ -43,14 +44,9 @@ func NewTrafiksAPIClient(timeout time.Duration) TrafiksAPIClient {
 	}
 }
 
-func (c *trafiksAPIClient) SetBaseURL(baseURL string) TrafiksAPIClient {
+func (c *trafiksAPIClient) SetAPIConfig(baseURL, apiKey string) {
 	c.baseURL = baseURL
-	return c
-}
-
-func (c *trafiksAPIClient) SetAPIKey(apiKey string) TrafiksAPIClient {
 	c.apiKey = apiKey
-	return c
 }
 
 // CheckHealth checks if the Trafiks backend is reachable via /health endpoint

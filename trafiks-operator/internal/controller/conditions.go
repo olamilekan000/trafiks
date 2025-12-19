@@ -12,6 +12,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// Condition types
+const (
+	ConditionTypeReady            = "Ready"
+	ConditionTypeAvailable        = "Available"
+	ConditionTypeBackendReachable = "BackendReachable"
+	ConditionTypeServiceResolved  = "ServiceResolved"
+	ConditionTypeSynced           = "Synced"
+)
+
 func SetCondition(
 	conditions *[]metav1.Condition,
 	conditionType string,
