@@ -74,7 +74,7 @@ func NewRouter(logger pkg.LoggerClient) Router {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 		AllowOrigins:     allowedOrigins,
-		ExposeHeaders:    []string{"Set-Cookie"},
+		ExposeHeaders:    []string{"Set-Cookie", "Content-Type", "X-Cache"},
 	}
 
 	httpRouter.Use(cors.New(corsConf))

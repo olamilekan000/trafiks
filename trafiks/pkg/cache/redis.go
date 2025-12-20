@@ -127,12 +127,11 @@ func (r *redisClient) GetClient() *redis.Client {
 	return r.client
 }
 
-// CacheKey generates a cache key from request details
-func CacheKey(method, path, query string, bodyHash string) string {
-	if bodyHash != "" {
-		return method + ":" + path + ":" + query + ":" + bodyHash
+func CacheKey(method, url, query string) string {
+	if query != "" {
+		return method + ":" + url + ":" + query
 	}
-	return method + ":" + path + ":" + query
+	return method + ":" + url
 }
 
 type RedisConf struct {

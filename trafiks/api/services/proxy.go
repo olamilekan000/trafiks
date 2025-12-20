@@ -3,9 +3,7 @@ package services
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,6 +36,7 @@ type ProxyResponse struct {
 	RequestHeaders map[string]string
 	Error          error
 	ErrorMessage   string
+	ContentType    string
 }
 
 // RequestLogData holds data for logging a request
@@ -124,7 +123,8 @@ type ProxyService struct {
 	tlsPort        string // TLS port for HTTPS redirects
 	streamHub      pkg.MetricsStreamHubClient
 	webhookService WebhookEventSender
-	httpClient     *http.Client
+	transport      http.RoundTripper
+	requestTimeout time.Duration
 	sourceManager  *source.ServiceSourceManager
 	webhookRepo    repository.WebhookRepoClient
 }
@@ -169,11 +169,9 @@ func NewProxyService(
 		streamHub:      streamHub,
 		webhookService: webhookService,
 		sourceManager:  sourceManager,
-		httpClient: &http.Client{
-			Timeout:   proxyConfig.RequestTimeout,
-			Transport: transport,
-		},
-		webhookRepo: webhookRepo,
+		transport:      transport,
+		requestTimeout: proxyConfig.RequestTimeout,
+		webhookRepo:    webhookRepo,
 	}
 }
 
@@ -327,7 +325,6 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 	}
 
 	var bodyBytes []byte
-	var bodyHash string
 
 	if req.Body != nil {
 		bodyBytes, err = io.ReadAll(req.Body)
@@ -344,11 +341,6 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 			return response
 		}
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
-		if len(bodyBytes) > 0 {
-			hash := sha256.Sum256(bodyBytes)
-			bodyHash = hex.EncodeToString(hash[:])
-		}
 	}
 
 	path := req.URL.Path
@@ -367,37 +359,45 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 	}
 
 	cacheHit := false
-	if service.CacheEnabled && req.Method == http.MethodGet {
-		cacheKey := cache.CacheKey(req.Method, req.URL.Path, req.URL.RawQuery, bodyHash)
+	if service.CacheEnabled && (req.Method == http.MethodGet || req.Method == http.MethodHead) {
+		cacheKey := cache.CacheKey(req.Method, req.URL.Path, req.URL.RawQuery)
 
-		if cached, err := p.cacheClient.Get(req.Context(), cacheKey); err == nil && cached != nil {
-			p.logger.Infof("Cache hit for %s %s", req.Method, req.URL.Path)
-			cacheHit = true
+		if cachedData, err := p.cacheClient.Get(req.Context(), cacheKey); err == nil && cachedData != nil {
+			cachedEntry, err := cache.DecodeCacheEntry(cachedData)
+			if err != nil {
+				p.logger.Warnf("failed to decode cached entry: %v", err)
+			} else {
+				p.logger.Infof("cache hit for %s %s", req.Method, req.URL.Path)
+				cacheHit = true
 
-			response.CacheHit = true
-			response.Body = cached
-			response.StatusCode = http.StatusOK
-			response.Headers.Set("Content-Type", "application/json")
-
-			tempReq, _ := http.NewRequestWithContext(req.Context(), req.Method, targetURL, nil)
-			applyHeaderModifications(tempReq, req, serviceConfig)
-			for key, values := range tempReq.Header {
-				if len(values) > 0 {
-					response.RequestHeaders[key] = values[0]
+				response.CacheHit = true
+				response.Body = cachedEntry.Body
+				response.StatusCode = cachedEntry.StatusCode
+				if cachedEntry.ContentType != "" {
+					response.Headers.Set("Content-Type", cachedEntry.ContentType)
 				}
+				response.Headers.Set("X-Cache", "HIT")
+
+				tempReq, _ := http.NewRequestWithContext(req.Context(), req.Method, targetURL, nil)
+				applyHeaderModifications(tempReq, req, serviceConfig)
+				for key, values := range tempReq.Header {
+					if len(values) > 0 {
+						response.RequestHeaders[key] = values[0]
+					}
+				}
+
+				responseTime := time.Since(startTime).Milliseconds()
+				go p.logRequest(NewRequestLogData(req, clientIP, userAgent, service).
+					WithResponseBody(cachedEntry.Body).
+					WithRequestBody(bodyBytes).
+					WithStatusCode(cachedEntry.StatusCode).
+					WithResponseTime(responseTime).
+					WithCacheHit(true).
+					WithTargetURL(targetURL).
+					WithRequestHeaders(response.RequestHeaders))
+
+				return response
 			}
-
-			responseTime := time.Since(startTime).Milliseconds()
-			go p.logRequest(NewRequestLogData(req, clientIP, userAgent, service).
-				WithResponseBody(cached).
-				WithRequestBody(bodyBytes).
-				WithStatusCode(http.StatusOK).
-				WithResponseTime(responseTime).
-				WithCacheHit(true).
-				WithTargetURL(targetURL).
-				WithRequestHeaders(response.RequestHeaders))
-
-			return response
 		}
 	}
 
@@ -450,7 +450,10 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 		}
 	}
 
-	resp, err := p.httpClient.Do(backendReq)
+	reqCtx, cancel := context.WithTimeout(backendReq.Context(), p.requestTimeout)
+	defer cancel()
+
+	resp, err := p.transport.RoundTrip(backendReq.WithContext(reqCtx))
 	if err != nil {
 		p.logger.Errorf("Error forwarding request: %v", err)
 		responseTime := time.Since(startTime).Milliseconds()
@@ -505,12 +508,27 @@ func (p *ProxyService) ProxyRequest(req *http.Request, clientIP, userAgent strin
 		return response
 	}
 
-	if service.CacheEnabled && req.Method == http.MethodGet && resp.StatusCode == http.StatusOK {
-		cacheKey := cache.CacheKey(req.Method, req.URL.Path, req.URL.RawQuery, bodyHash)
-		ttl := time.Duration(service.CacheTTL) * time.Second
-		if err := p.cacheClient.Set(req.Context(), cacheKey, body, ttl); err != nil {
-			p.logger.Warnf("Failed to cache response: %v", err)
+	if service.CacheEnabled {
+		if req.Method == http.MethodGet || req.Method == http.MethodHead {
+			if cache.IsCacheable(resp) {
+				cacheKey := cache.CacheKey(req.Method, req.URL.Path, req.URL.RawQuery)
+				ttl := cache.GetCacheTTL(resp, time.Duration(service.CacheTTL)*time.Second)
+
+				cacheEntry := &cache.CacheEntry{
+					Body:        body,
+					ContentType: resp.Header.Get("Content-Type"),
+					StatusCode:  resp.StatusCode,
+				}
+
+				entryData, err := cacheEntry.Encode()
+				if err != nil {
+					p.logger.Warnf("Failed to encode cache entry: %v", err)
+				} else if err := p.cacheClient.Set(req.Context(), cacheKey, entryData, ttl); err != nil {
+					p.logger.Warnf("Failed to cache response: %v", err)
+				}
+			}
 		}
+		response.Headers.Set("X-Cache", "MISS")
 	}
 
 	response.Body = body
@@ -881,10 +899,12 @@ func isBinaryContentType(contentType string) bool {
 	return false
 }
 
-// Helper function to check if error is a timeout
 func isTimeoutError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if err == context.DeadlineExceeded {
+		return true
 	}
 	errStr := strings.ToLower(err.Error())
 	return strings.Contains(errStr, "timeout") ||

@@ -639,9 +639,7 @@ func TestProxyService_ProxyRequest(t *testing.T) {
 				)
 			}
 
-			proxyService.httpClient = &http.Client{
-				Transport: &mockHTTPTransport{doFunc: mockHTTPClient.DoFunc},
-			}
+			proxyService.transport = &mockHTTPTransport{doFunc: mockHTTPClient.DoFunc}
 
 			req := tt.Req()
 			resp := proxyService.ProxyRequest(req, tt.ClientIP, tt.UserAgent)
