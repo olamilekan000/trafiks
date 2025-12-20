@@ -61,6 +61,9 @@ export default function ServiceConfig() {
     https_redirect: false,
   });
 
+  const [headersRemoveText, setHeadersRemoveText] = useState("");
+  const [queryParamsRemoveText, setQueryParamsRemoveText] = useState("");
+
   useEffect(() => {
     console.log("certificate", certificate);
   }, [certificate]);
@@ -109,20 +112,30 @@ export default function ServiceConfig() {
 
         const serviceConfig = serviceData.configuration || {};
 
-        // Initialize unified config state
+        const headersRemove = serviceConfig.headers?.remove || [];
+        const queryParamsRemove = serviceConfig.query_params?.remove || [];
+
         setConfig({
           headers: {
-            remove: serviceConfig.headers?.remove || [],
+            remove: headersRemove,
             add: serviceConfig.headers?.add || {},
           },
           query_params: {
-            remove: serviceConfig.query_params?.remove || [],
+            remove: queryParamsRemove,
           },
           https_redirect:
             serviceConfig.https_redirect !== undefined
               ? serviceConfig.https_redirect
               : serviceData.scheme === "https",
         });
+
+        // Initialize textarea values
+        setHeadersRemoveText(
+          Array.isArray(headersRemove) ? headersRemove.join(", ") : ""
+        );
+        setQueryParamsRemoveText(
+          Array.isArray(queryParamsRemove) ? queryParamsRemove.join(", ") : ""
+        );
 
         // Initialize headers to add as array for UI
         if (
@@ -223,17 +236,16 @@ export default function ServiceConfig() {
     });
   };
 
-  const handleCommaSeparatedChange = (path, value) => {
-    const array = value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    handleConfigChange(path, array);
-  };
+  const handleCommaSeparatedChange = (path, value, setTextState) => {
+    if (setTextState) {
+      setTextState(value);
+    }
 
-  // Get comma-separated string from array
-  const getCommaSeparated = (array) => {
-    return Array.isArray(array) ? array.join(", ") : "";
+    const lines = value.split(/[,\n]/);
+    const array = lines
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+    handleConfigChange(path, array);
   };
 
   const handleSave = async () => {
@@ -986,13 +998,17 @@ export default function ServiceConfig() {
               Headers to Remove (comma-separated)
             </label>
             <textarea
-              value={getCommaSeparated(config.headers.remove)}
+              value={headersRemoveText}
               onChange={(e) =>
-                handleCommaSeparatedChange("headers.remove", e.target.value)
+                handleCommaSeparatedChange(
+                  "headers.remove",
+                  e.target.value,
+                  setHeadersRemoveText
+                )
               }
-              placeholder="X-Internal-Token, X-Debug-Header"
+              placeholder="X-Internal-Token, X-Debug-Header, X-Custom-Header"
               className="config-textarea"
-              rows="3"
+              rows="4"
             />
           </div>
           <div className="key-value-group">
@@ -1070,16 +1086,17 @@ export default function ServiceConfig() {
               Query Parameters to Remove (comma-separated)
             </label>
             <textarea
-              value={getCommaSeparated(config.query_params.remove)}
+              value={queryParamsRemoveText}
               onChange={(e) =>
                 handleCommaSeparatedChange(
                   "query_params.remove",
-                  e.target.value
+                  e.target.value,
+                  setQueryParamsRemoveText
                 )
               }
-              placeholder="utm_source, utm_medium"
+              placeholder="utm_source, utm_medium, utm_campaign"
               className="config-textarea"
-              rows="3"
+              rows="4"
             />
           </div>
         </div>
