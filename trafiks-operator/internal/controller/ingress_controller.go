@@ -26,6 +26,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -217,6 +218,11 @@ func (r *IngressReconciler) StartHTTPServer(ctx context.Context) error {
 	}
 
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				r.Logger.Error(fmt.Errorf("panic in HTTP server goroutine: %v", rec), "")
+			}
+		}()
 		r.Logger.Info("Starting HTTP server", "port", r.HTTPPort)
 		if err := r.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			r.Logger.Error(fmt.Errorf("HTTP server error: %v", err), "")
@@ -224,6 +230,11 @@ func (r *IngressReconciler) StartHTTPServer(ctx context.Context) error {
 	}()
 
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				r.Logger.Error(fmt.Errorf("panic in HTTPS server goroutine: %v", rec), "")
+			}
+		}()
 		r.Logger.Info("Starting HTTPS server", "port", r.HTTPSPort)
 		if err := r.httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 			r.Logger.Error(fmt.Errorf("HTTPS server error: %v", err), "")
@@ -458,16 +469,14 @@ func (r *IngressReconciler) forwardRequest(w http.ResponseWriter, req *http.Requ
 		clientTLSConfig.InsecureSkipVerify = true
 	}
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: clientTLSConfig,
-		},
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			r.Logger.Info("Redirect detected", "from", via[len(via)-1].URL, "to", req.URL)
-			return nil
-		},
+	transport := &http.Transport{
+		TLSClientConfig: clientTLSConfig,
 	}
-	resp, err := client.Do(newReq)
+
+	reqCtx, cancel := context.WithTimeout(newReq.Context(), 30*time.Second)
+	defer cancel()
+	newReq = newReq.WithContext(reqCtx)
+	resp, err := transport.RoundTrip(newReq)
 	if err != nil {
 		r.Logger.Error(fmt.Errorf("failed to reach backend %s %s: %v", newReq.Method, targetURL, err), "")
 		http.Error(w, fmt.Sprintf("Failed to reach backend: %v", err), http.StatusBadGateway)
@@ -523,7 +532,70 @@ func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.tlsConfigs = make(map[string]*tls.Config)
 	r.ingressHosts = make(map[types.NamespacedName][]string)
 
+	// Add a runnable to handle graceful shutdown of HTTP servers
+	if err := mgr.Add(r); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1.Ingress{}).
 		Complete(r)
+}
+
+// Start implements the Runnable interface for graceful shutdown
+func (r *IngressReconciler) Start(ctx context.Context) error {
+	<-ctx.Done()
+
+	r.Logger.Info("Shutdown signal received, gracefully shutting down HTTP servers")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, 2)
+
+	if r.httpServer != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r.Logger.Info("Shutting down HTTP server", "port", r.HTTPPort)
+			if err := r.httpServer.Shutdown(shutdownCtx); err != nil {
+				r.Logger.Error(fmt.Errorf("error shutting down HTTP server: %v", err), "")
+				errChan <- err
+			} else {
+				r.Logger.Info("HTTP server shut down gracefully", "port", r.HTTPPort)
+			}
+		}()
+	}
+
+	if r.httpsServer != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r.Logger.Info("Shutting down HTTPS server", "port", r.HTTPSPort)
+			if err := r.httpsServer.Shutdown(shutdownCtx); err != nil {
+				r.Logger.Error(fmt.Errorf("error shutting down HTTPS server: %v", err), "")
+				errChan <- err
+			} else {
+				r.Logger.Info("HTTPS server shut down gracefully", "port", r.HTTPSPort)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	if shutdownCtx.Err() == context.DeadlineExceeded {
+		r.Logger.Error(fmt.Errorf("shutdown timeout exceeded"), "")
+		return shutdownCtx.Err()
+	}
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	r.Logger.Info("All HTTP servers shut down successfully")
+	return nil
 }
