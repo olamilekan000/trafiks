@@ -5,9 +5,9 @@ metadata:
   namespace: trafiks
 type: Opaque
 stringData:
-  baseURL: "http://trafikscloud.cloud"
+  baseURL: "http://trafiks-trafiks-charts-backend.trafiks.svc.cluster.local"
   # apikey should be created on the trafiks dashboard
-  apiKey: "tfk_c42b5bf52cb3c2d07b051739f99ddb9cad88dc9a1f207ac5616ac53ae8797c08"
+  apiKey: "tfk_94c2855dbf2ffcffad4cca701466c6578faaa91193be546db8d17a88d6cb8115"
   # baseURL: "http://localhost:8890"
   # apiKey: "tfk_6292df2a3f9ab6744bcf7481525a9d8a9f1ee2c92db12e7ccad98428f181baa6"
 
