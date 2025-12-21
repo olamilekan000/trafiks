@@ -215,7 +215,7 @@ The Trafiks operator manages TrafiksProxy and TrafiksBackend custom resources, a
 1. **Install the operator:**
    ```bash
    cd trafiks-operator
-   make deploy IMG=olamilekan001/trafiks-operator:v0.0.4
+   make deploy IMG=olamilekan001/trafiks-operator:v0.0.5
    ```
 
 2. **Create a Secret with backend credentials:**
