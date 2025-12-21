@@ -6,4 +6,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: olamilekan001/trafiks-operator
-  newTag: v0.0.4
+  newTag: v0.0.5
