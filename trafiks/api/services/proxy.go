@@ -631,6 +631,7 @@ var hopByHopHeaders = []string{
 	"Upgrade",
 }
 
+// This is in compliance with RFC 7230 (https://datatracker.ietf.org/doc/html/rfc7230#section-6.1)
 func removeHopByHopHeaders(header http.Header) {
 	if connValue := header.Get("Connection"); connValue != "" {
 		for _, part := range strings.Split(connValue, ",") {

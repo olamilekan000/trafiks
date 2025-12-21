@@ -9,6 +9,7 @@ import (
 )
 
 // CacheControl represents parsed Cache-Control header directives
+// This is in complian with RFC 7234 (https://datatracker.ietf.org/doc/html/rfc7234#section-5.2.1.1)
 type CacheControl struct {
 	MaxAge         int  // max-age value in seconds, -1 if not present
 	SMaxAge        int  // s-maxage value in seconds, -1 if not present
